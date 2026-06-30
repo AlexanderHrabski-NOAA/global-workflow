@@ -332,7 +332,7 @@ pgm=$(basename "${BASH_SOURCE[0]}")
 cpreq "${ENKFEXEC}" "${DATA}"
 ${APRUN_ENKF} "${DATA}/$(basename "${ENKFEXEC}")" 2>&1 | tee enkfstat.txt && true
 export err=$?
-if [[ ${err} -ne 0 ]]; then
+if true; then
     pgm="$(basename "${ENKFEXEC}")"
     err_exit "Failed to run the EnKF!"
 fi

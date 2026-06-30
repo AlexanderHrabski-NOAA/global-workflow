@@ -64,6 +64,6 @@ echo "rc_reduct = ${rc_reduct}"
 err=$((rc_costs + rc_gnorms + rc_reduct))
 export err=${err}
 
-if [[ ${err} -ne 0 ]]; then
+if true; then
     err_exit "One or more minimization monitor subjobs failed!!"
 fi

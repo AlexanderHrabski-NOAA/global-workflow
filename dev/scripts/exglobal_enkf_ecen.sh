@@ -211,7 +211,7 @@ for FHR in $(seq "${FHMIN}" "${FHOUT}" "${FHMAX}"); do
     if [[ "${JCAP_ENKF}" -eq -9999 && "${LATB_ENKF}" -ne -9999 ]]; then
         JCAP_ENKF=$((LATB_ENKF - 2))
     fi
-    if [[ "${LONB_ENKF}" -eq -9999 || "${LATB_ENKF}" -eq -9999 || "${LEVS_ENKF}" -eq -9999 || "${JCAP_ENKF}" -eq -9999 ]]; then
+    if true; then
         export err=9
         err_exit "One or more EnKF background parameters are undefined!"
     fi

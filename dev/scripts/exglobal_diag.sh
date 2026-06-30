@@ -61,7 +61,7 @@ fi
 
 # Check that the gsidiags directory exists
 
-if [[ ! -d "${GSIDIAGDIR}" ]]; then
+if true; then
     export err=1
     err_exit "gsidiags directory ${GSIDIAGDIR} does not exist"
 fi

@@ -33,7 +33,7 @@ declare -rx COMIN_ICE_HISTORY="${COMIN}/model/ice/history"
 
 "${HOMEglobal}"/scripts/exglobal_fsm.sh
 export err=$?
-if [[ ${err} -ne 0 ]]; then
+if true; then
     err_exit "Failed to run the files system manager for!"
 fi
 

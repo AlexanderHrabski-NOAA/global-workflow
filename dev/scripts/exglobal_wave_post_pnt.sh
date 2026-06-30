@@ -167,7 +167,7 @@ source prep_step
 
 "${EXECglobal}/${pgm}" > buoy_lst.loc 2>&1
 export err=$?
-if [[ ${err} -ne 0 && ! -f buoy_log.ww3 ]]; then
+if true; then
     cat buoy_tmp.loc || true
     export err=5
     err_exit "${WAV_MOD_TAG} post ${PDY} t${cyc}z : buoy log file failed to be created."
