@@ -121,7 +121,7 @@ fi
 : "${FORECASTSH:=${SCRglobal}/exglobal_forecast.sh}"
 "${FORECASTSH}" && true # The && true prevents the shell from exiting when set -e
 export err=$?
-if true; then
+if [[ ${err} -ne 0 ]]; then
     err_exit "Failed to run the ${RUN} forecast for ${PDY}${cyc}"
 fi
 
