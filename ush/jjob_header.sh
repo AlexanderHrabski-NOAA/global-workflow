@@ -3,16 +3,22 @@
 # Universal header for global j-jobs
 #
 # Sets up and completes actions common to all j-jobs:
-# - Sources configs provided as arguments
-# - Sources machine environment script
+# - Sources configs provided as arguments (optional)
+# - Sources machine environment script (optional)
 #
 # Note: setpdy.sh and PDY variables are now handled in
 #   jjob_shell_setup.sh, not here.
 #
-# The job name for the environment files should be passed
-#   in using the `-e` option (required). Any config files
-#   to be sourced should be passed in as an argument to
-#   the `-c` option. For example:
+# Config files and the machine environment script are now
+#   expected to be sourced by each calling j-job itself,
+#   immediately after it sources this header. The `-e` and
+#   `-c` options below are kept only for callers that have
+#   not yet been migrated to do that themselves; neither is
+#   required, and omitting one simply skips the corresponding
+#   step. The job name for the environment files should be
+#   passed in using the `-e` option. Any config files to be
+#   sourced should be passed in as an argument to the `-c`
+#   option. For example:
 #   ```
 #   jjob_header.sh -e "fcst" -c "base fcst"
 #   ```
@@ -61,27 +67,26 @@ while getopts "c:e:" option; do
 done
 shift $((OPTIND - 1))
 
-if [[ -z ${env_job} ]]; then
-    export err=1
-    err_exit "[${BASH_SOURCE[0]}]: Must specify a job name with -e"
+#############################
+# Source relevant config files if provided
+#############################
+if [[ -n "${configs[@]+set}" ]]; then
+    for config in "${configs[@]}"; do
+        source "${EXPDIR}/config.${config}" && true
+        export err=$?
+        if [[ ${err} -ne 0 ]]; then
+            err_exit "[${BASH_SOURCE[0]}]: Unable to load config config.${config}"
+        fi
+    done
 fi
 
-#############################
-# Source relevant config files
-#############################
-for config in "${configs[@]:-''}"; do
-    source "${EXPDIR}/config.${config}" && true
+##########################################
+# Source machine runtime environment if provided
+##########################################
+if [[ -n ${env_job} ]]; then
+    source "${HOMEglobal}/env/${machine}.env" "${env_job}" && true
     export err=$?
     if [[ ${err} -ne 0 ]]; then
-        err_exit "[${BASH_SOURCE[0]}]: Unable to load config config.${config}"
+        err_exit "[${BASH_SOURCE[0]}]: Error while sourcing machine environment ${machine}.env for job ${env_job}"
     fi
-done
-
-##########################################
-# Source machine runtime environment
-##########################################
-source "${HOMEglobal}/env/${machine}.env" "${env_job}" && true
-export err=$?
-if [[ ${err} -ne 0 ]]; then
-    err_exit "[${BASH_SOURCE[0]}]: Error while sourcing machine environment ${machine}.env for job ${env_job}"
 fi
