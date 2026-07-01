@@ -5,7 +5,23 @@ export DATAjob="${DATAROOT/enkf/}/${RUN/enkf/}_marineanalysis.${PDY:-}${cyc}"
 export DATA="${DATAjob}/marineanlecen"
 export DATAens="${DATAjob}/ensdata"
 
-source "${HOMEglobal}/ush/jjob_header.sh" -e "marineanlecen" -c "base marineanlecen"
+source "${HOMEglobal}/ush/jjob_header.sh"
+
+# Source config files
+for config in base marineanlecen; do
+    source "${EXPDIR}/config.${config}" && true
+    export err=$?
+    if [[ ${err} -ne 0 ]]; then
+        err_exit "[${BASH_SOURCE[0]}]: Unable to load config config.${config}"
+    fi
+done
+
+# Source machine runtime environment
+source "${HOMEglobal}/env/${machine}.env" "marineanlecen" && true
+export err=$?
+if [[ ${err} -ne 0 ]]; then
+    err_exit "[${BASH_SOURCE[0]}]: Error while sourcing machine environment ${machine}.env for job marineanlecen"
+fi
 
 #{% if false %}
 source "${HOMEglobal}/ush/jjob_standard_vars.sh"

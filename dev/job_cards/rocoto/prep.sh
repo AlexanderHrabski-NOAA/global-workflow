@@ -11,7 +11,24 @@ fi
 ###############################################################
 export job="prep"
 export jobid="${job}.$$"
-source "${HOMEglobal}/ush/jjob_header.sh" -e "prep" -c "base prep"
+source "${HOMEglobal}/ush/jjob_header.sh"
+
+# Source config files
+for config in base prep; do
+    source "${EXPDIR}/config.${config}" && true
+    export err=$?
+    if [[ ${err} -ne 0 ]]; then
+        err_exit "[${BASH_SOURCE[0]}]: Unable to load config config.${config}"
+    fi
+done
+
+# Source machine runtime environment
+source "${HOMEglobal}/env/${machine}.env" "prep" && true
+export err=$?
+if [[ ${err} -ne 0 ]]; then
+    err_exit "[${BASH_SOURCE[0]}]: Error while sourcing machine environment ${machine}.env for job prep"
+fi
+
 #{% if false %}
 source "${HOMEglobal}/ush/jjob_standard_vars.sh"
 #{% else %}

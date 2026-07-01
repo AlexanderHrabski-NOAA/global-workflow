@@ -2,7 +2,23 @@
 set -x
 export EXPDIR="${EXPDIR:-${HOMEglobal}/parm/config/${NET}}"
 export DATA=${DATA:-${DATAROOT}/${RUN}fetch_${cyc}}
-source "${HOMEglobal}/ush/jjob_header.sh" -e "fetch" -c "base fetch"
+source "${HOMEglobal}/ush/jjob_header.sh"
+
+# Source config files
+for config in base fetch; do
+    source "${EXPDIR}/config.${config}" && true
+    export err=$?
+    if [[ ${err} -ne 0 ]]; then
+        err_exit "[${BASH_SOURCE[0]}]: Unable to load config config.${config}"
+    fi
+done
+
+# Source machine runtime environment
+source "${HOMEglobal}/env/${machine}.env" "fetch" && true
+export err=$?
+if [[ ${err} -ne 0 ]]; then
+    err_exit "[${BASH_SOURCE[0]}]: Error while sourcing machine environment ${machine}.env for job fetch"
+fi
 
 #{% if false %}
 source "${HOMEglobal}/ush/jjob_standard_vars.sh"

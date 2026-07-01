@@ -12,7 +12,23 @@ if [[ ! -d "${DATAens}" ]]; then mkdir -p "${DATAens}"; fi
 if [[ ! -d "${DATAstaticb}" ]]; then mkdir -p "${DATAstaticb}"; fi
 # source config.base, config.ocnanal and config.marinebmat
 # and pass marinebmat to ${machine}.env
-source "${HOMEglobal}/ush/jjob_header.sh" -e "marinebmat" -c "base marinebmat"
+source "${HOMEglobal}/ush/jjob_header.sh"
+
+# Source config files
+for config in base marinebmat; do
+    source "${EXPDIR}/config.${config}" && true
+    export err=$?
+    if [[ ${err} -ne 0 ]]; then
+        err_exit "[${BASH_SOURCE[0]}]: Unable to load config config.${config}"
+    fi
+done
+
+# Source machine runtime environment
+source "${HOMEglobal}/env/${machine}.env" "marinebmat" && true
+export err=$?
+if [[ ${err} -ne 0 ]]; then
+    err_exit "[${BASH_SOURCE[0]}]: Error while sourcing machine environment ${machine}.env for job marinebmat"
+fi
 
 #{% if false %}
 source "${HOMEglobal}/ush/jjob_standard_vars.sh"

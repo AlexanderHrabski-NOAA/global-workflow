@@ -5,11 +5,43 @@ export EXPDIR="${EXPDIR:-${HOMEglobal}/parm/config/${NET}}"
 if [[ 10#${ENSMEM:--1} -ge 0 ]]; then
     export DATAjob="${DATAROOT}/${RUN}efcs${ENSMEM}.${PDY:-}${cyc}"
     export DATA="${DATAjob}/${jobid}"
-    source "${HOMEglobal}/ush/jjob_header.sh" -e "efcs" -c "base fcst efcs"
+    source "${HOMEglobal}/ush/jjob_header.sh"
+
+    # Source config files
+    for config in base fcst efcs; do
+        source "${EXPDIR}/config.${config}" && true
+        export err=$?
+        if [[ ${err} -ne 0 ]]; then
+            err_exit "[${BASH_SOURCE[0]}]: Unable to load config config.${config}"
+        fi
+    done
+
+    # Source machine runtime environment
+    source "${HOMEglobal}/env/${machine}.env" "efcs" && true
+    export err=$?
+    if [[ ${err} -ne 0 ]]; then
+        err_exit "[${BASH_SOURCE[0]}]: Error while sourcing machine environment ${machine}.env for job efcs"
+    fi
 else
     export DATAjob="${DATAROOT}/${RUN}_forecast.${PDY:-}${cyc}"
     export DATA="${DATAjob}/${jobid}"
-    source "${HOMEglobal}/ush/jjob_header.sh" -e "fcst" -c "base fcst"
+    source "${HOMEglobal}/ush/jjob_header.sh"
+
+    # Source config files
+    for config in base fcst; do
+        source "${EXPDIR}/config.${config}" && true
+        export err=$?
+        if [[ ${err} -ne 0 ]]; then
+            err_exit "[${BASH_SOURCE[0]}]: Unable to load config config.${config}"
+        fi
+    done
+
+    # Source machine runtime environment
+    source "${HOMEglobal}/env/${machine}.env" "fcst" && true
+    export err=$?
+    if [[ ${err} -ne 0 ]]; then
+        err_exit "[${BASH_SOURCE[0]}]: Error while sourcing machine environment ${machine}.env for job fcst"
+    fi
 fi
 
 #{# ***NOTE: lines starting with #{ are Jinja templating and will be ignored by Bash.***

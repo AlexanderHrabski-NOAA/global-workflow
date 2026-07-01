@@ -3,7 +3,23 @@
 
 set -x
 export EXPDIR="${EXPDIR:-${HOMEglobal}/parm/config/${NET}}"
-source "${HOMEglobal}/ush/jjob_header.sh" -e "analcalc_fv3jedi" -c "base analcalc_fv3jedi"
+source "${HOMEglobal}/ush/jjob_header.sh"
+
+# Source config files
+for config in base analcalc_fv3jedi; do
+    source "${EXPDIR}/config.${config}" && true
+    export err=$?
+    if [[ ${err} -ne 0 ]]; then
+        err_exit "[${BASH_SOURCE[0]}]: Unable to load config config.${config}"
+    fi
+done
+
+# Source machine runtime environment
+source "${HOMEglobal}/env/${machine}.env" "analcalc_fv3jedi" && true
+export err=$?
+if [[ ${err} -ne 0 ]]; then
+    err_exit "[${BASH_SOURCE[0]}]: Error while sourcing machine environment ${machine}.env for job analcalc_fv3jedi"
+fi
 
 #{% if false %}
 source "${HOMEglobal}/ush/jjob_standard_vars.sh"

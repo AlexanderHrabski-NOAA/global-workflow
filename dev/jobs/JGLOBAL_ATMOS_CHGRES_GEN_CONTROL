@@ -2,7 +2,23 @@
 set -x
 export EXPDIR="${EXPDIR:-${HOMEglobal}/parm/config/${NET}}"
 # shellcheck disable=SC2153  # PDY is always set in environment
-source "${HOMEglobal}/ush/jjob_header.sh" -e "gen_control_ic" -c "base gen_control_ic"
+source "${HOMEglobal}/ush/jjob_header.sh"
+
+# Source config files
+for config in base gen_control_ic; do
+    source "${EXPDIR}/config.${config}" && true
+    export err=$?
+    if [[ ${err} -ne 0 ]]; then
+        err_exit "[${BASH_SOURCE[0]}]: Unable to load config config.${config}"
+    fi
+done
+
+# Source machine runtime environment
+source "${HOMEglobal}/env/${machine}.env" "gen_control_ic" && true
+export err=$?
+if [[ ${err} -ne 0 ]]; then
+    err_exit "[${BASH_SOURCE[0]}]: Error while sourcing machine environment ${machine}.env for job gen_control_ic"
+fi
 
 #{% if false %}
 source "${HOMEglobal}/ush/jjob_standard_vars.sh"

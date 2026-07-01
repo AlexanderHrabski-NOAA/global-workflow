@@ -4,7 +4,23 @@ export EXPDIR="${EXPDIR:-${HOMEglobal}/parm/config/${NET}}"
 export DATAjob="${DATAROOT}/${RUN}_marineanalysis.${PDY:-}${cyc}"
 export DATAens="${DATAjob}/ensdata"
 export DATA="${DATAjob}/marineanlvar"
-source "${HOMEglobal}/ush/jjob_header.sh" -e "marineanlinit" -c "base marineanl marineanlinit"
+source "${HOMEglobal}/ush/jjob_header.sh"
+
+# Source config files
+for config in base marineanl marineanlinit; do
+    source "${EXPDIR}/config.${config}" && true
+    export err=$?
+    if [[ ${err} -ne 0 ]]; then
+        err_exit "[${BASH_SOURCE[0]}]: Unable to load config config.${config}"
+    fi
+done
+
+# Source machine runtime environment
+source "${HOMEglobal}/env/${machine}.env" "marineanlinit" && true
+export err=$?
+if [[ ${err} -ne 0 ]]; then
+    err_exit "[${BASH_SOURCE[0]}]: Error while sourcing machine environment ${machine}.env for job marineanlinit"
+fi
 
 #{% if false %}
 source "${HOMEglobal}/ush/jjob_standard_vars.sh"

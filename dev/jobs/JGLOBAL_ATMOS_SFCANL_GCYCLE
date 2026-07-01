@@ -2,7 +2,23 @@
 set -x
 export EXPDIR="${EXPDIR:-${HOMEglobal}/parm/config/${NET}}"
 # for now, leave environment and config files un-changed.
-source "${HOMEglobal}/ush/jjob_header.sh" -e "sfcanl_gcycle" -c "base sfcanl_gcycle"
+source "${HOMEglobal}/ush/jjob_header.sh"
+
+# Source config files
+for config in base sfcanl_gcycle; do
+    source "${EXPDIR}/config.${config}" && true
+    export err=$?
+    if [[ ${err} -ne 0 ]]; then
+        err_exit "[${BASH_SOURCE[0]}]: Unable to load config config.${config}"
+    fi
+done
+
+# Source machine runtime environment
+source "${HOMEglobal}/env/${machine}.env" "sfcanl_gcycle" && true
+export err=$?
+if [[ ${err} -ne 0 ]]; then
+    err_exit "[${BASH_SOURCE[0]}]: Error while sourcing machine environment ${machine}.env for job sfcanl_gcycle"
+fi
 
 #{% if false %}
 source "${HOMEglobal}/ush/jjob_standard_vars.sh"
