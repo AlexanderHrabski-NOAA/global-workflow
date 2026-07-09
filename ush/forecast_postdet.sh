@@ -761,7 +761,7 @@ MOM6_out() {
     # Coarser than 1/2 degree has a single MOM restart
     local mom6_restart_files mom6_restart_file restart_file
     mom6_restart_files=(MOM.res.nc)
-    # 1/4 degree resolution has 3 additional restarts
+    # 1/4 degree resolution has 4 additional restarts, 1/12 degree has 15
     case ${OCNRES} in
         "025")
             local nres_files=4
@@ -776,7 +776,7 @@ MOM6_out() {
     if (( nres_files > 0 )); then
         local nn
         for ((nn = 1; nn <= nres_files; nn++)); do
-            mom6_restart_file+=("MOM.res_${nn}.nc")
+            mom6_restart_files+=("MOM.res_${nn}.nc")
         done
     fi
 
