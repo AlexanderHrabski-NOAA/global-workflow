@@ -863,7 +863,8 @@ pgm=$(basename "${BASH_SOURCE[0]}")
 cpreq "${GSIEXEC}" "${DATA}"
 ${APRUN_GSI} "${DATA}/$(basename "${GSIEXEC}")" 1>&1 2>&2
 export err=$?
-if [[ ${err} -ne 0 ]]; then
+# TEMPORARY: forced true for WCOSS2 err_exit testing; restore "${err} -ne 0" before merging
+if true; then
     pgm="$(basename "${GSIEXEC}")"
     err_exit "Failed to run the GSI analysis!"
 fi

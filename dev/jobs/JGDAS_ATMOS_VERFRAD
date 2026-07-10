@@ -44,7 +44,8 @@ if [[ ! -d ${TANKverf_rad} ]]; then mkdir -p "${TANKverf_rad}"; fi
 # Execute the script.
 "${SCRglobal}/exgdas_atmos_verfrad.sh" && true
 export err=$?
-if [[ ${err} -ne 0 ]]; then
+# TEMPORARY: forced true for WCOSS2 err_exit testing; restore "${err} -ne 0" before merging
+if true; then
     err_exit "Failed to generate radiance monitor products"
 fi
 

@@ -61,7 +61,8 @@ done
 # 1.a.1 Execute MPMD or process serially
 "${USHglobal}/run_mpmd.sh" "${DATA}/mpmd_script" && true
 export err=$?
-if [[ ${err} -ne 0 ]]; then
+# TEMPORARY: forced true for WCOSS2 err_exit testing; restore "${err} -ne 0" before merging
+if true; then
     pgm="run_mpmd.sh"
     err_exit "run_mpmd.sh failed!"
 fi

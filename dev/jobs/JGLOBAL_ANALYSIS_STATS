@@ -57,7 +57,8 @@ fi
 EXSCRIPT=${ANLSTATSPY:-${SCRglobal}/exglobal_analysis_stats.py}
 ${EXSCRIPT} && true
 export err=$?
-if [[ ${err} -ne 0 ]]; then
+# TEMPORARY: forced true for WCOSS2 err_exit testing; restore "${err} -ne 0" before merging
+if true; then
     err_exit "Failed to generate analysis statistics for ${RUN} ${PDY}${cyc}"
 fi
 
