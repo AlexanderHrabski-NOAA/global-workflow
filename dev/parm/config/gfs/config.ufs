@@ -542,8 +542,8 @@ if [[ "${skip_mom6}" == "false" ]]; then
         ntasks_mom6=220
       fi
       OCNTIM=1800
-      NX_GLB=1440
-      NY_GLB=1080
+      NX_GLB=4500
+      NY_GLB=3297
       DT_DYNAM_MOM6='900'
       DT_THERM_MOM6='1800'
       FRUNOFF="runoff.daitren.clim.${NX_GLB}x${NY_GLB}.v20180328.nc"

@@ -737,7 +737,7 @@ EOF
 
     # Copy coupled grid_spec
     local spec_file
-    spec_file="${FIXglobal}/cpl/a${CASE}o${OCNRES}/grid_spec.nc"
+    spec_file="${FIXcpl}/a${CASE}o${OCNRES}/grid_spec.nc"
     # Test that the file exists and is not zero-sized
     if [[ -s "${spec_file}" ]]; then
         cpreq "${spec_file}" "${DATA}/INPUT/"

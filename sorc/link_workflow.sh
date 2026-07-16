@@ -218,7 +218,7 @@ fi
 # Link these templates from ufs-weather-model
 cd "${HOMEglobal}/parm/ufs" || exit 1
 declare -a ufs_templates=("model_configure.IN" "input_global_nest.nml.IN"
-    "MOM_input_025.IN" "MOM_input_050.IN" "MOM_input_100.IN" "MOM_input_500.IN"
+    "MOM_input_008.IN" "MOM_input_025.IN" "MOM_input_050.IN" "MOM_input_100.IN" "MOM_input_500.IN"
     "MOM6_data_table.IN"
     "ice_in.IN"
     "ufs.configure.atm.IN"
