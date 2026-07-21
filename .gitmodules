@@ -1,6 +1,7 @@
 [submodule "sorc/ufs_model.fd"]
   path = sorc/ufs_model.fd
-  url = https://github.com/ufs-community/ufs-weather-model
+  url = https://github.com/AlexanderHrabski-NOAA/ufs-weather-model
+  branch = feature/highres_mom6cic6
   ignore = dirty
 [submodule "sorc/wxflow"]
   path = sorc/wxflow
@@ -19,7 +20,8 @@
   url = https://github.com/NOAA-EMC/GSI.git
 [submodule "sorc/gdas.cd"]
   path = sorc/gdas.cd
-  url = https://github.com/NOAA-EMC/GDASApp.git
+  url = https://github.com/AlexanderHrabski-NOAA/GDASApp.git
+  branch = feature/highres_mom6cic6
   ignore = dirty
 [submodule "sorc/gsi_utils.fd"]
   path = sorc/gsi_utils.fd
