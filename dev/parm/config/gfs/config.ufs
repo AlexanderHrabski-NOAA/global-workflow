@@ -546,7 +546,7 @@ if [[ "${skip_mom6}" == "false" ]]; then
       NY_GLB=3297
       DT_DYNAM_MOM6='300'
       DT_THERM_MOM6='1200' #300s in RTOFS
-      FRUNOFF="runoff.daitren.clim.${NX_GLB}x${NY_GLB}.v20180328.nc"
+      FRUNOFF="runoff.daitren.clim.0.08deg.nc"
       CHLCLIM="seawifs-clim-1997-2010.${NX_GLB}x${NY_GLB}.v20180328.nc"
       MOM6_RIVER_RUNOFF='True'
       MOM6_RESTART_SETTING="r"
