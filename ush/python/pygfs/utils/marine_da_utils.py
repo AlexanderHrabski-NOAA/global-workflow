@@ -191,7 +191,8 @@ def get_mom6_levels(ocnres: str) -> int:
         '500': 25,
         '100': 75,
         '050': 75,
-        '025': 75
+        '025': 75,
+        '008': 41
     }
     try:
         nlev = ocnres_to_nlev.get(ocnres)
