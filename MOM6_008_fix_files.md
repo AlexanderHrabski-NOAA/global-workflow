@@ -38,22 +38,22 @@ Files that do NOT come through this glob (separate, explicit code paths):
 Equivalence column: EXACT = same role AND a canonical shared name → we renamed to it.
 ROLE = same job, genuinely different data → keep RTOFS file/name. NONE = no counterpart.
 
-| Role                   | GFS-lineage file                                    | RTOFS file                        | Equivalence | Our action                          |
-| ---------------------- | --------------------------------------------------- | --------------------------------- | ----------- | ----------------------------------- |
-| Horizontal grid        | `ocean_hgrid.nc`                                    | `regional.mom6.nc`                | EXACT       | renamed -> `ocean_hgrid.nc`         |
-| Bathymetry             | `ocean_topog.nc`                                    | `depth_GLBb0.08_09m11ob2_mom6.nc` | EXACT       | renamed -> `ocean_topog.nc`         |
-| DA increment (runtime) | `mom6_increment.nc`                                 | `MOM.inc.TSzh.nc` (+`MOM.inc.UV`) | EXACT       | renamed -> `mom6_increment.nc`      |
-| Vertical coord (ALE)   | `hycom1_75_800m.nc` + `layer_coord.nc`              | `mom6_vgrid.nc`                   | ROLE        | keep `mom6_vgrid.nc` (see note A)   |
-| Chlorophyll            | `seawifs-clim-*.nc`                                 | `chl_mom6.nc`                     | ROLE        | keep `chl_mom6.nc`                  |
-| T/S initialization     | `MOM6_IC_TS.nc` (prepared IC)                       | `woa13_decav_ptemp/s_*_01.nc`     | ROLE/NONE   | keep WOA13 (cold-start data source) |
-| SSS restoring          | (none)                                              | `sss_mom6.nc`                     | NONE        | keep (new capability)               |
-| Basin mask             | (none)                                              | `basin.nc`                        | NONE        | keep (already MOM6 default name)    |
-| Diag z-remap grid      | `interpolate_zgrid_30L.nc` / `oceanda_zgrid_75L.nc` | `WOA09` (was built-in)            | ROLE        | templatized to config file (note B) |
-| Topo edits             | `All_edits.nc`                                      | (none)                            | NONE        | not used (`TOPO_EDITS_FILE=""`)     |
-| Channel widths         | `MOM_channels_global_025`                           | (none)                            | NONE        | not used (`CHANNEL_CONFIG="none"`)  |
-| Tidal amplitude        | `tidal_amplitude.v20140616.nc`                      | (none)                            | NONE        | not used (tides off)                |
-| Geothermal flux        | `geothermal_davies2013_v1.nc`                       | (none)                            | NONE        | not used (`DO_GEOTHERMAL=False`)    |
-| River runoff           | `runoff.daitren.clim.*.nc`                          | (none)                            | NONE        | not used                            |
+| Role                   | GFS-lineage file                                    | RTOFS file                          | Equivalence | Our action                                                    |
+| ---------------------- | --------------------------------------------------- | ----------------------------------- | ----------- | ------------------------------------------------------------- |
+| Horizontal grid        | `ocean_hgrid.nc`                                    | `regional.mom6.nc`                  | EXACT       | renamed then REVERTED — currently `regional.mom6.nc`          |
+| Bathymetry             | `ocean_topog.nc`                                    | `depth_GLBb0.08_09m11ob2_mom6.nc`   | EXACT       | renamed -> `ocean_topog.nc`                                   |
+| DA increment (runtime) | `mom6_increment.nc`                                 | `MOM.inc.TSzh.nc` (+`MOM.inc.UV`)   | EXACT       | renamed -> `mom6_increment.nc`                                |
+| Vertical coord (ALE)   | `hycom1_75_800m.nc` + `layer_coord.nc`              | `mom6_vgrid.nc`                     | ROLE        | keep `mom6_vgrid.nc` (see note A)                             |
+| Chlorophyll            | `seawifs-clim-*.nc`                                 | `chl_mom6.nc`                       | ROLE        | keep `chl_mom6.nc`                                            |
+| T/S initialization     | `MOM6_IC_TS.nc` (temp/salt)                         | `woa13_decav_ptemp/s_*` (delivered) | ROLE        | → adopted GFS `MOM6_IC_TS.nc` (cold-start only)               |
+| SSS restoring          | (none)                                              | `sss_mom6.nc`                       | NONE        | restoring turned OFF — file not needed                        |
+| Basin mask             | (none)                                              | `basin.nc`                          | NONE        | restoring off — inert / not needed                            |
+| Diag z-remap grid      | `interpolate_zgrid_30L.nc` / `oceanda_zgrid_75L.nc` | `WOA09` (was built-in)              | ROLE        | templatized to config file (note B)                           |
+| Topo edits             | `All_edits.nc`                                      | (none)                              | NONE        | not used (`TOPO_EDITS_FILE=""`)                               |
+| Channel widths         | `MOM_channels_global_025`                           | (none)                              | NONE        | not used (`CHANNEL_CONFIG="none"`)                            |
+| Tidal amplitude        | `tidal_amplitude.v20140616.nc`                      | (none)                              | NONE        | not used (tides off)                                          |
+| Geothermal flux        | `geothermal_davies2013_v1.nc`                       | (none)                              | NONE        | not used (`DO_GEOTHERMAL=False`)                              |
+| River runoff           | `LIQUID_RUNOFF_FROM_DATA=@[MOM6_RIVER_RUNOFF]`      | (absent as delivered)               | ROLE        | → adopted GFS handling; file `runoff.daitren.clim.0.08deg.nc` |
 
 
 ## 3. Internal-variable "contracts"
@@ -62,35 +62,35 @@ A fix filename is only half the contract; each `MOM_input` reference also names 
 expects to find inside the file. Wrong variable name => MOM6 fatals on read, even if the file exists.
 Confirm these with `ncdump -h` on the staged files.
 
-| File                | MOM_input reference                                      | Required internal variable(s)              |
-| ------------------- | -------------------------------------------------------- | ------------------------------------------ |
-| `ocean_hgrid.nc`    | `GRID_FILE`                                              | mosaic supergrid vars (x,y,dx,dy,angle_dx) |
-| `ocean_topog.nc`    | `TOPO_FILE`, `TOPO_VARNAME="depth"`                      | `depth`                                    |
-| `mom6_vgrid.nc`     | `COORD_FILE`+`COORD_VAR="Layer"`; `HYBRID:...,sigma2,dz` | `Layer`, `sigma2`, `dz`                    |
-| `chl_mom6.nc`       | `CHL_FILE`, `CHL_VARNAME="chl_a"`                        | `chl_a`                                    |
-| `sss_mom6.nc`       | `SALT_RESTORE_FILE`, `SALT_RESTORE_VARIABLE="SSS"`       | `SSS`                                      |
-| `woa13_*_ptemp_*`   | `TEMP_Z_INIT_FILE`, `Z_INIT_FILE_PTEMP_VAR="ptemp_an"`   | `ptemp_an`                                 |
-| `woa13_*_s_*`       | `SALT_Z_INIT_FILE`, `Z_INIT_FILE_SALT_VAR="s_an"`        | `s_an`                                     |
-| `*zgrid_*L.nc`      | `DIAG_COORD_DEF_Z="FILE:...,interfaces=zw"`              | `zw` (interface depths)                    |
-| `mom6_increment.nc` | `ODA_*` (via `@[ODA_*]`)                                 | `Temp`,`Salt`,`h`,`u`,`v`                  |
+| File                             | MOM_input reference                                                     | Required internal variable(s)              |
+| -------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------ |
+| `regional.mom6.nc`               | `GRID_FILE`                                                             | mosaic supergrid vars (x,y,dx,dy,angle_dx) |
+| `ocean_topog.nc`                 | `TOPO_FILE`, `TOPO_VARNAME="depth"`                                     | `depth`                                    |
+| `mom6_vgrid.nc`                  | `COORD_FILE`+`COORD_VAR="Layer"`; `HYBRID:...,sigma2,dz`                | `Layer`, `sigma2`, `dz`                    |
+| `chl_mom6.nc`                    | `CHL_FILE`, `CHL_VARNAME="chl_a"`                                       | `chl_a`                                    |
+| `runoff.daitren.clim.0.08deg.nc` | data_table `OCN` runoff (`@[MOM6_FRUNOFF]`) + `LIQUID_RUNOFF_FROM_DATA` | `runoff`                                   |
+| `MOM6_IC_TS.nc`                  | `TEMP_SALT_Z_INIT_FILE` (cold start)                                    | `temp`, `salt`                             |
+| `*zgrid_*L.nc`                   | `DIAG_COORD_DEF_Z="FILE:...,interfaces=zw"`                             | `zw` (interface depths)                    |
+| `mom6_increment.nc`              | `ODA_*` (via `@[ODA_*]`)                                                | `Temp`,`Salt`,`h`,`u`,`v`                  |
 
 
 ## 4. Needed for the present (warm-start) config
 
-| File                       | When MOM6 reads it               | Verdict for present config        |
-| -------------------------- | -------------------------------- | --------------------------------- |
-| `ocean_hgrid.nc`           | every run                        | REQUIRED                          |
-| `ocean_topog.nc`           | every run                        | REQUIRED                          |
-| `mom6_vgrid.nc`            | every run                        | REQUIRED                          |
-| `chl_mom6.nc`              | every run (`CHL_FROM_FILE=True`) | REQUIRED                          |
-| `sss_mom6.nc`              | every run (`RESTORE_SALINITY`)   | REQUIRED                          |
-| `interpolate_zgrid_30L.nc` | forecast RUNs (diag remap)       | REQUIRED (added by note B)        |
-| `oceanda_zgrid_75L.nc`     | gdas RUN (diag remap)            | REQUIRED for DA cycle (note B)    |
-| `grid_spec.nc` (FIXcpl)    | every coupled run                | REQUIRED (fatal size-check)       |
-| CICE grid/mask/mesh        | every coupled run                | REQUIRED                          |
-| `woa13_decav_ptemp/s_*`    | cold start only (`='n'`)         | Seed/fallback only; not read warm |
-| `basin.nc`                 | only if `MASK_SRESTORE*` = True  | Staged but INERT (mask flags off) |
-| GFS-only (tidal/geo/etc.)  | never (features off)             | Not needed                        |
+| File                             | When MOM6 reads it                    | Verdict for present config          |
+| -------------------------------- | ------------------------------------- | ----------------------------------- |
+| `regional.mom6.nc`               | every run                             | REQUIRED                            |
+| `ocean_topog.nc`                 | every run                             | REQUIRED                            |
+| `mom6_vgrid.nc`                  | every run                             | REQUIRED                            |
+| `chl_mom6.nc`                    | every run (`CHL_FROM_FILE=True`)      | REQUIRED                            |
+| `sss_mom6.nc`                    | restoring OFF                         | NOT needed (RESTORE_SALINITY=False) |
+| `interpolate_zgrid_30L.nc`       | forecast RUNs (diag remap)            | REQUIRED (added by note B)          |
+| `oceanda_zgrid_75L.nc`           | gdas RUN (diag remap)                 | REQUIRED for DA cycle (note B)      |
+| `grid_spec.nc` (FIXcpl)          | every coupled run                     | REQUIRED (fatal size-check)         |
+| CICE grid/mask/mesh              | every coupled run                     | REQUIRED                            |
+| `runoff.daitren.clim.0.08deg.nc` | every run (`LIQUID_RUNOFF_FROM_DATA`) | REQUIRED (river runoff on)          |
+| `MOM6_IC_TS.nc`                  | cold start only (`='n'`)              | Seed/fallback only; not read warm   |
+| `basin.nc`                       | restoring OFF                         | NOT needed                          |
+| GFS-only (tidal/geo/etc.)        | never (features off)                  | Not needed                          |
 
 
 ## Note A — `mom6_vgrid.nc` vs `hycom1_75_800m.nc` (vertical coordinate)
@@ -160,7 +160,8 @@ it should not imply an equivalence the contents don't have.
 ## Note D — Cold start vs warm start (init files)
 
 Warm-start cycling (`input_filename='r'`) reads `MOM.res*.nc` and bypasses the whole state-init
-block, so `woa13_*` are NOT read during continuation. They matter only to seed cycle 1 (or as a
-fallback) when `INIT_LAYERS_FROM_Z_FILE=True` and `input_filename='n'`. Stage them, but don't expect
-them to participate in a warm run. There is no GFS operational reference for cold-starting directly
-from WOA climatology; the GFS parallel is `INIT_FROM_Z` pointed at a prepared (chgres'd) IC.
+block, so the cold-start IC is NOT read during continuation. The init block now follows GFS: when
+`INIT_LAYERS_FROM_Z_FILE=True` and `input_filename='n'` it reads `MOM6_IC_TS.nc` (vars `temp`/`salt`);
+alternatively a warm-start snapshot is read via `@[MOM6_WARMSTART_FILE]` / `@[MOM6_INIT_UV]`. The
+RTOFS-delivered `woa13_*` cold-start files are no longer referenced. These matter only to seed cycle 1
+or as a fallback — never during a warm continuation run.

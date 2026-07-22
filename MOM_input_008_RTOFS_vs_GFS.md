@@ -19,22 +19,22 @@ Legend: `@[X]` = atparse template placeholder filled at runtime by the workflow.
 | --------------------- | ----------------------------- | ---------------------------------------------------- | ------------------------------------------- |
 | File kind             | Hand-maintained template      | Model-generated `MOM_parameter_doc` dump             | Re-introduced templating (see below)        |
 | Length                | ~990 lines, non-defaults only | ~2119 lines, every parameter incl. defaults          | left long form (kept)                       |
-| `@[...]` placeholders | 28                            | 0 (all values hardcoded)                             | restored 17 workflow-owned placeholders     |
+| `@[...]` placeholders | 28                            | 0 (all values hardcoded)                             | restored 21 workflow-owned placeholders     |
 | Consequence           | Workflow-drivable             | atparse passes through verbatim → config.ufs ignored | Workflow control restored for runtime knobs |
 
 
 ## 1. Grid & domain
 
-| Parameter       | GFS (HEAD~1)     | RTOFS (HEAD)       | Our change                                        |
-| --------------- | ---------------- | ------------------ | ------------------------------------------------- |
-| `NIGLOBAL`      | `@[NX_GLB]`      | `4500`             | → `@[NX_GLB]` (templatized; config.ufs sets 4500) |
-| `NJGLOBAL`      | `@[NY_GLB]`      | `3297`             | → `@[NY_GLB]` (templatized; config.ufs sets 3297) |
-| `REENTRANT_X`   | (default)        | `True`             | — (kept; global tripolar grid)                    |
-| `TRIPOLAR_N`    | `True`           | `True`             | — (kept)                                          |
-| `GRID_FILE`     | `ocean_hgrid.nc` | `regional.mom6.nc` | → `ocean_hgrid.nc` (rename; RTOFS team request)   |
-| `MAXIMUM_DEPTH` | `6500.0`         | `8200.0`           | — (kept)                                          |
-| `MINIMUM_DEPTH` | `9.5`            | `3.0`              | — (kept)                                          |
-| `MASKING_DEPTH` | `0.0`            | `-9999.0`          | — (kept)                                          |
+| Parameter       | GFS (HEAD~1)     | RTOFS (HEAD)       | Our change                                                                 |
+| --------------- | ---------------- | ------------------ | -------------------------------------------------------------------------- |
+| `NIGLOBAL`      | `@[NX_GLB]`      | `4500`             | → `@[NX_GLB]` (templatized; config.ufs sets 4500)                          |
+| `NJGLOBAL`      | `@[NY_GLB]`      | `3297`             | → `@[NY_GLB]` (templatized; config.ufs sets 3297)                          |
+| `REENTRANT_X`   | (default)        | `True`             | — (kept; global tripolar grid)                                             |
+| `TRIPOLAR_N`    | `True`           | `True`             | — (kept)                                                                   |
+| `GRID_FILE`     | `ocean_hgrid.nc` | `regional.mom6.nc` | renamed to `ocean_hgrid.nc`, later reverted — currently `regional.mom6.nc` |
+| `MAXIMUM_DEPTH` | `6500.0`         | `8200.0`           | — (kept)                                                                   |
+| `MINIMUM_DEPTH` | `9.5`            | `3.0`              | — (kept)                                                                   |
+| `MASKING_DEPTH` | `0.0`            | `-9999.0`          | — (kept)                                                                   |
 
 
 ## 2. Bathymetry & channels
@@ -50,11 +50,11 @@ Legend: `@[X]` = atparse template placeholder filled at runtime by the workflow.
 
 ## 3. Time stepping
 
-| Parameter               | GFS (HEAD~1)          | RTOFS (HEAD)                              | Our change                                                                                         |
-| ----------------------- | --------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `DT`                    | `@[DT_DYNAM_MOM6]`    | `300.0`                                   | → `@[DT_DYNAM_MOM6]` (templatized)                                                                 |
-| `DT_THERM`              | `@[DT_THERM_MOM6]`    | `300.0` (with `#DT_THERM=1200` commented) | collapsed to single `@[DT_THERM_MOM6]`; config.ufs 008 set to `300` to preserve as-tested behavior |
-| `THERMO_SPANS_COUPLING` | `@[MOM6_THERMO_SPAN]` | `False`                                   | — (kept hardcoded False)                                                                           |
+| Parameter               | GFS (HEAD~1)          | RTOFS (HEAD)                              | Our change                                                              |
+| ----------------------- | --------------------- | ----------------------------------------- | ----------------------------------------------------------------------- |
+| `DT`                    | `@[DT_DYNAM_MOM6]`    | `300.0`                                   | → `@[DT_DYNAM_MOM6]` (templatized)                                      |
+| `DT_THERM`              | `@[DT_THERM_MOM6]`    | `300.0` (with `#DT_THERM=1200` commented) | collapsed to single `@[DT_THERM_MOM6]`; config.ufs 008 currently `1200` |
+| `THERMO_SPANS_COUPLING` | `@[MOM6_THERMO_SPAN]` | `False`                                   | — (kept hardcoded False)                                                |
 
 
 ## 4. Vertical coordinate
@@ -77,13 +77,13 @@ consolidates both roles into one 41-layer file, so there is no exact equivalent.
 
 ## 5. Initialization
 
-| Parameter                    | GFS (HEAD~1)               | RTOFS (HEAD)                                | Our change                     |
-| ---------------------------- | -------------------------- | ------------------------------------------- | ------------------------------ |
-| Strategy                     | Warm start from restart/IC | Cold start from WOA13 climatology           | — (kept; RTOFS science choice) |
-| `INIT_LAYERS_FROM_Z_FILE`    | `@[MOM6_INIT_FROM_Z]`      | `True`                                      | — (kept)                       |
-| `TEMP_Z_INIT_FILE`           | (via `MOM6_IC_TS.nc`)      | `woa13_decav_ptemp_monthly_fulldepth_01.nc` | — (kept)                       |
-| `SALT_Z_INIT_FILE`           | (via `MOM6_IC_TS.nc`)      | `woa13_decav_s_monthly_fulldepth_01.nc`     | — (kept)                       |
-| `THICKNESS_FILE` / warmstart | `@[MOM6_WARMSTART_FILE]`   | (absent — cold start)                       | — (kept)                       |
+| Parameter                 | GFS (HEAD~1)                                                                        | RTOFS (HEAD)                                       | Our change                                                              |
+| ------------------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------- | ----------------------------------------------------------------------- |
+| Strategy                  | Warm start from restart/IC                                                          | Cold start from WOA13 climatology                  | → adopted GFS init handling (templated toggle + warm-start file blocks) |
+| `INIT_LAYERS_FROM_Z_FILE` | `@[MOM6_INIT_FROM_Z]`                                                               | `True`                                             | → `@[MOM6_INIT_FROM_Z]` (templatized)                                   |
+| z-init file / vars        | `MOM6_IC_TS.nc` (`temp`/`salt`)                                                     | `woa13_decav_ptemp/s_*` (`ptemp_an`/`s_an`)        | → `TEMP_SALT_Z_INIT_FILE="MOM6_IC_TS.nc"` (vars `temp`/`salt`)          |
+| Z_INIT remapping          | `Z_INIT_REMAP_OLD_ALG=True` (simple)                                                | `Z_INIT_REMAP_GENERAL/FULL_COLUMN=True`, `PPM_IH4` | → adopted GFS settings (dropped RTOFS general-coord remap opts)         |
+| warm-start blocks         | `THICKNESS/TS/VELOCITY_CONFIG="file"` → `@[MOM6_WARMSTART_FILE]`, `@[MOM6_INIT_UV]` | (absent — cold start only)                         | → added GFS warm-start blocks                                           |
 
 
 ## 6. Physics / parameterizations
@@ -102,16 +102,16 @@ consolidates both roles into one 41-layer file, so there is no exact equivalent.
 
 ## 7. Surface forcing & restoring
 
-| Parameter               | GFS (HEAD~1)                                        | RTOFS (HEAD)                        | Our change                                                               |
-| ----------------------- | --------------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------ |
-| `OCEAN_SURFACE_STAGGER` | `A`                                                 | `C`                                 | — (kept)                                                                 |
-| `WIND_STAGGER`          | `A`                                                 | `C`                                 | — (kept)                                                                 |
-| `CHL_FILE`              | `@[MOM6_CHLCLIM]` (seawifs)                         | `chl_mom6.nc` (`CHL_VARNAME=chl_a`) | — (kept; different dataset/grid/varname)                                 |
-| `RESTORE_SALINITY`      | (absent)                                            | `True`                              | — (kept; new capability)                                                 |
-| `SALT_RESTORE_FILE`     | (n/a)                                               | `sss_mom6.nc`                       | — (kept; no GFS equivalent)                                              |
-| `BASIN_FILE`            | (n/a)                                               | `basin.nc`                          | — (kept; already MOM6 default name)                                      |
-| River runoff            | `LIQUID_RUNOFF_FROM_DATA=@[MOM6_RIVER_RUNOFF]`      | (absent)                            | — (kept)                                                                 |
-| Waves                   | `USE_WAVES=@[MOM6_USE_WAVES]` + SURFACE_BANDS block | `USE_WAVES=False`, no wave block    | — (kept False; NOTE: coupling WW3 later requires porting the wave block) |
+| Parameter               | GFS (HEAD~1)                                        | RTOFS (HEAD)                        | Our change                                                                                                      |
+| ----------------------- | --------------------------------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `OCEAN_SURFACE_STAGGER` | `A`                                                 | `C`                                 | — (kept)                                                                                                        |
+| `WIND_STAGGER`          | `A`                                                 | `C`                                 | — (kept)                                                                                                        |
+| `CHL_FILE`              | `@[MOM6_CHLCLIM]` (seawifs)                         | `chl_mom6.nc` (`CHL_VARNAME=chl_a`) | — (kept; different dataset/grid/varname)                                                                        |
+| `RESTORE_SALINITY`      | (absent)                                            | `True`                              | → `False` (restoring off; not needed for coupled run)                                                           |
+| `SALT_RESTORE_FILE`     | (n/a)                                               | `sss_mom6.nc`                       | — (inert; RESTORE_SALINITY=False → file not read/needed)                                                        |
+| `BASIN_FILE`            | (n/a)                                               | `basin.nc`                          | — (inert; RESTORE_SALINITY=False → file not read/needed)                                                        |
+| River runoff            | `LIQUID_RUNOFF_FROM_DATA=@[MOM6_RIVER_RUNOFF]`      | (absent)                            | → added `LIQUID_RUNOFF_FROM_DATA=@[MOM6_RIVER_RUNOFF]`; config.ufs 008 FRUNOFF=`runoff.daitren.clim.0.08deg.nc` |
+| Waves                   | `USE_WAVES=@[MOM6_USE_WAVES]` + SURFACE_BANDS block | `USE_WAVES=False`, no wave block    | — (kept False; NOTE: coupling WW3 later requires porting the wave block)                                        |
 
 
 ## 8. Ocean DA — ODA incremental update  (the critical fix)
@@ -141,26 +141,27 @@ consolidates both roles into one 41-layer file, so there is no exact equivalent.
 
 ## 10. Stochastic physics
 
-| Parameter    | GFS (HEAD~1)         | RTOFS (HEAD) | Our change                                    |
-| ------------ | -------------------- | ------------ | --------------------------------------------- |
-| `DO_SPPT`    | `@[DO_OCN_SPPT]`     | `False`      | → `@[DO_OCN_SPPT]` (enables ensemble control) |
-| `PERT_EPBL`  | `@[PERT_EPBL]`       | `False`      | → `@[PERT_EPBL]`                              |
-| `WRITE_GEOM` | `@[MOM6_WRITE_GEOM]` | `0`          | → `@[MOM6_WRITE_GEOM]`                        |
+| Parameter    | GFS (HEAD~1)         | RTOFS (HEAD) | Our change                                  |
+| ------------ | -------------------- | ------------ | ------------------------------------------- |
+| `DO_SPPT`    | `@[DO_OCN_SPPT]`     | `False`      | → `@[DO_OCN_SPPT]` (config sets NO → False) |
+| `PERT_EPBL`  | `@[PERT_EPBL]`       | `False`      | → `@[PERT_EPBL]` (config sets NO → False)   |
+| `WRITE_GEOM` | `@[MOM6_WRITE_GEOM]` | `0`          | → `@[MOM6_WRITE_GEOM]`                      |
 
 
 ## 11. Fix-file rename summary
 
 Files renamed to canonical MOM6/GFS names (role exactly equivalent):
-  - `regional.mom6.nc`                    → `ocean_hgrid.nc`   (horizontal grid)
+  - horizontal grid: renamed to `ocean_hgrid.nc`, later REVERTED — currently `regional.mom6.nc`
   - `depth_GLBb0.08_09m11ob2_mom6.nc`     → `ocean_topog.nc`   (bathymetry; provenance kept in comments)
   - `MOM.inc.TSzh.nc` (+ `MOM.inc.UV.nc`) → `mom6_increment.nc` (DA increments; u/v folded in)
 
 Files kept as RTOFS delivered (no exact GFS equivalent):
   - `mom6_vgrid.nc`  — merges GFS `layer_coord.nc` + `hycom1_75_800m.nc`
   - `chl_mom6.nc`    — different dataset/grid/varname than GFS seawifs chlorophyll
-  - `woa13_decav_ptemp_monthly_fulldepth_01.nc` / `woa13_decav_s_monthly_fulldepth_01.nc` — WOA13 cold-start climatology
-  - `sss_mom6.nc`    — SSS restoring (no GFS counterpart)
-  - `basin.nc`       — already the MOM6 default name
+  - `MOM6_IC_TS.nc` — cold-start IC (GFS init adopted; vars `temp`/`salt`). WOA13 files no longer referenced.
+  - `sss_mom6.nc`    — SSS restoring now OFF (RESTORE_SALINITY=False); file no longer needed
+  - `basin.nc`       — restoring off → inert / not needed
+  - `runoff.daitren.clim.0.08deg.nc` — river runoff now ON (LIQUID_RUNOFF_FROM_DATA=True); staged via data_table
 
 Newly required by the DIAG_COORD_DEF_Z templatization (stage under the config.ufs name):
   - `interpolate_zgrid_30L.nc` (forecast RUNs) and/or `oceanda_zgrid_75L.nc` (gdas) — the depth
