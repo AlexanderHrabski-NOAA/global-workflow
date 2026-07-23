@@ -688,9 +688,9 @@ CICE_predet() {
     mapfile -t CICE_OUTPUT_FH < <(seq "${FHMIN}" "${FHOUT_ICE}" "${FHMAX}") || exit 10
 
     # Fix files
-    cpreq "${FIXglobal}/cice/${ICERES}/${CICE_GRID}" "${DATA}/"
-    cpreq "${FIXglobal}/cice/${ICERES}/${CICE_MASK}" "${DATA}/"
-    cpreq "${FIXglobal}/cice/${ICERES}/${MESH_ICE}" "${DATA}/"
+    cpreq "${FIXcice}/${ICERES}/${CICE_GRID}" "${DATA}/"
+    cpreq "${FIXcice}/${ICERES}/${CICE_MASK}" "${DATA}/"
+    cpreq "${FIXcice}/${ICERES}/${MESH_ICE}" "${DATA}/"
 
 }
 
@@ -726,7 +726,7 @@ MOM6_predet() {
     # Fix files for ocean; ocean_hgrid, ocean_mosaic, ocean_mask, etc.
     # MOM_channels is configurable based on resolution, but is treated as a fix file
     # MOM_override is a template that allows user to override default namelist settings, but is also treated as a fix file
-    cpreq "${FIXglobal}/mom6/${OCNRES}/"* "${DATA}/INPUT/" # TODO: These need to be explicit
+    cpreq "${FIXmom}/${OCNRES}/"* "${DATA}/INPUT/" # TODO: These need to be explicit
 
     # Add to the MOM_override file, to have ISO timestamp
     cat >> "${DATA}/INPUT/MOM_override" << EOF
