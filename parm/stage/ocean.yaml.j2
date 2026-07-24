@@ -8,3 +8,20 @@ ocean:
         - ["{{ ICSDIR }}/{{ COMOUT_OCEAN_RESTART_PREV | relpath(ROTDIR) }}/{{ m_prefix }}.MOM.res_{{ nn }}.nc", "{{ COMOUT_OCEAN_RESTART_PREV }}"]
         {% endfor %}
         {% endif %}
+        {# At 0.08 deg a single 3D field already exceeds the 4 GiB netCDF limit, so MOM6  #}
+        {# starts a new MOM.res_N.nc for nearly every one of them.  The tile count is    #}
+        {# therefore a property of the run (which parameterizations register restart     #}
+        {# fields), not a fixed function of resolution, so discover the tiles instead of #}
+        {# assuming a count.  MOM6 stops scanning at the first missing index, so the     #}
+        {# sequence must be contiguous; break at the first gap to match that behavior.   #}
+        {% if OCNRES == "008" and not MOM6_INTERP_ICS %}
+        {% set ns = namespace(more=true) %}
+        {% for nn in range(1, 65) %}
+        {% set res_tile = ICSDIR ~ "/" ~ (COMOUT_OCEAN_RESTART_PREV | relpath(ROTDIR)) ~ "/" ~ m_prefix ~ ".MOM.res_" ~ nn ~ ".nc" %}
+        {% if ns.more and path_exists(res_tile) %}
+        - ["{{ res_tile }}", "{{ COMOUT_OCEAN_RESTART_PREV }}"]
+        {% else %}
+        {% set ns.more = false %}
+        {% endif %}
+        {% endfor %}
+        {% endif %}

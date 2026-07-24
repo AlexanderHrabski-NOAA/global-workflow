@@ -649,29 +649,32 @@ MOM6_postdet() {
     fi
 
     # Copy MOM6 ICs
-    cpreq "${restart_dir}/${restart_date:0:8}.${restart_date:8:2}0000.MOM.res.nc" "${DATA}/INPUT/MOM.res.nc"
-    case ${OCNRES} in
-        "025")
-            local nres_files=4
-            ;;
-        "008")
-            local nres_files=15
-            ;;
-        *)
-            local nres_files=0
-            ;;
-    esac
+    local restart_prefix="${restart_dir}/${restart_date:0:8}.${restart_date:8:2}0000.MOM.res"
+    cpreq "${restart_prefix}.nc" "${DATA}/INPUT/MOM.res.nc"
 
-    if (( nres_files > 0 )); then
-        local nn
-        for ((nn = 1; nn <= nres_files; nn++)); do
-            restart_file="${restart_dir}/${restart_date:0:8}.${restart_date:8:2}0000.MOM.res_${nn}.nc"
+    # MOM6 spreads the restart over MOM.res.nc plus a variable number of MOM.res_N.nc
+    # files: any field that would push a file past the 4 GiB netCDF limit is started in
+    # a new file, so the count depends on the resolution *and* on which parameterizations
+    # register restart fields.  Copy every tile that is present rather than assuming a
+    # fixed count.  MOM6 stops scanning at the first missing index, so the sequence must
+    # be contiguous; loop the same way it does.
+    local nn=1
+    while [[ -f "${restart_prefix}_${nn}.nc" ]]; do
+        cpreq "${restart_prefix}_${nn}.nc" "${DATA}/INPUT/MOM.res_${nn}.nc"
+        nn=$((nn + 1))
+    done
 
-            if [[ -f "${restart_file}" ]]; then
-                cpreq "${restart_file}" "${DATA}/INPUT/MOM.res_${nn}.nc"
-            fi
-        done
+    # A hole in the sequence would silently truncate the restart, so fail loudly instead.
+    local ntiles_linked ntiles_present
+    ntiles_linked=$((nn - 1))
+    ntiles_present=$(find "${restart_dir}" -maxdepth 1 -name "$(basename "${restart_prefix}")_*.nc" | wc -l)
+    if (( ntiles_present != ntiles_linked )); then
+        echo "FATAL ERROR: MOM6 restart tiles under ${restart_dir} are not contiguous;"
+        echo "             ${ntiles_present} '$(basename "${restart_prefix}")_*.nc' files exist"
+        echo "             but only ${ntiles_linked} form an unbroken sequence from _1."
+        exit 25
     fi
+    echo "Copied MOM.res.nc plus ${ntiles_linked} MOM.res_N.nc tiles for OCNRES=${OCNRES}"
 
     # Copy increment (only when RERUN=NO)
     if [[ "${RERUN}" == "NO" ]]; then
@@ -757,28 +760,19 @@ MOM6_out() {
         cpfs "${DATA}/MOM6_OUTPUT/MOM_parameter_doc.all" "${COMOUT_CONF}/MOM_parameter_doc.all"
     fi
 
-    # Create a list of MOM6 restart files
-    # Coarser than 1/2 degree has a single MOM restart
-    local mom6_restart_files mom6_restart_file restart_file
+    # Create a list of MOM6 restart files.
+    # Coarser than 1/2 degree has a single MOM restart; finer resolutions are spread over
+    # MOM.res.nc plus a variable number of MOM.res_N.nc files (see MOM6_postdet).  The
+    # count is a property of the run, not just the resolution, so list what the model
+    # actually wrote instead of hard-coding it.
+    local mom6_restart_files mom6_restart_file restart_file nn
     mom6_restart_files=(MOM.res.nc)
-    # 1/4 degree resolution has 4 additional restarts, 1/12 degree has 15
-    case ${OCNRES} in
-        "025")
-            local nres_files=4
-            ;;
-        "008")
-            local nres_files=15
-            ;;
-        *)
-            local nres_files=0
-            ;;
-    esac
-    if (( nres_files > 0 )); then
-        local nn
-        for ((nn = 1; nn <= nres_files; nn++)); do
-            mom6_restart_files+=("MOM.res_${nn}.nc")
-        done
-    fi
+    nn=1
+    while compgen -G "${DATArestart}/MOM6_RESTART/*.MOM.res_${nn}.nc" > /dev/null; do
+        mom6_restart_files+=("MOM.res_${nn}.nc")
+        nn=$((nn + 1))
+    done
+    echo "MOM6 wrote ${#mom6_restart_files[@]} restart file(s) for OCNRES=${OCNRES}"
 
     # Build MPMD cmdfile to copy MOM6 restarts in parallel
     local cmdfile="${DATA}/cmdfile_mom6_out"
