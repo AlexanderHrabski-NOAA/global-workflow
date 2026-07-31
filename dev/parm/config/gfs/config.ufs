@@ -533,13 +533,13 @@ if [[ "${skip_mom6}" == "false" ]]; then
       ;;
     "008")
       if [[ "${RUN}" = enkfgdas ]]; then
-        ntasks_mom6=160
+        ntasks_mom6=960
       elif [[ "${RUN}" = gdas ]]; then
-        ntasks_mom6=100
+        ntasks_mom6=600
       elif [[ "${RUN}" = gfs ]]; then
-        ntasks_mom6=240
+        ntasks_mom6=1440
       else
-        ntasks_mom6=220
+        ntasks_mom6=1320
       fi
       OCNTIM=1200         #300s to match DT_THERM in RTOFS?
       NX_GLB=4500
