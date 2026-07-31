@@ -541,6 +541,13 @@ if [[ "${skip_mom6}" == "false" ]]; then
       else
         ntasks_mom6=1320
       fi
+      # NOTE: OCNTIM becomes CPL_SLOW, the outer CMEPS run-sequence interval, while
+      # CPL_FAST is DELTIM (see exglobal_forecast.sh).  CPL_SLOW must be an exact
+      # multiple of CPL_FAST, so 1200 restricts which CASE can be paired with 008:
+      # C768 (DELTIM=150 -> 8) and C384 (300 -> 4) are fine, C48 (900 -> 1.33) and
+      # C3072 (90 -> 13.33) are not.  The mx025 value of 1800 divided every DELTIM in
+      # the table above, so this constraint has not had to be enforced before.  Nothing
+      # validates it today; a mismatch shows up as an opaque failure inside CMEPS.
       OCNTIM=1200         #300s to match DT_THERM in RTOFS?
       NX_GLB=4500
       NY_GLB=3297
@@ -601,6 +608,17 @@ if [[ "${skip_cice6}" == "false" ]]; then
   fi
 
   nthreads_cice6=${nthreads_mom6}  # CICE6 needs to run on same threads as MOM6
+  # ntasks_cice6 is not a free parameter.  parsing_namelists_CICE.sh turns it into a
+  # CICE block decomposition as NPX=ntasks_cice6/2, NPY=2 (for slenderX2) and then
+  # block_size_x=ceil(NX_GLB/NPX).  CICE recomputes the block count from that as
+  # nblocks_x=(NX_GLB-1)/block_size_x+1, so unless
+  #
+  #     NX_GLB / (ntasks_cice6 / 2)   is an exact integer
+  #
+  # the round-up in block_size_x overshoots, nblocks_x*NPY comes out less than
+  # ntasks_cice6, and the cartesian distribution hands the surplus ranks zero blocks
+  # (max_blocks=0 on those PETs).  Always pick ntasks_cice6 = 2 * d for some divisor d
+  # of NX_GLB.  NY_GLB never constrains this: NPY=2 always yields nblocks_y=2.
   case "${cice6_res}" in
     "500")
       ntasks_cice6=4
@@ -625,12 +643,25 @@ if [[ "${skip_cice6}" == "false" ]]; then
       cice6_processor_shape="slenderX2"
       ;;
     "008")
+      # Scaled off the mx025 CICE counts to track the 6x jump in ntasks_mom6 above,
+      # then snapped to the nearest value satisfying "NX_GLB / (ntasks_cice6 / 2) must
+      # be an exact integer".  NX_GLB=4500 = 2^2 * 3^2 * 5^3, and the exact 6x targets
+      # both miss: 1440 gives 4500/720 = 6.25 and 240 gives 4500/120 = 37.5.  The next
+      # valid counts up are 6.25x the mx025 values:
+      #   gfs  1500 -> NPX=750, 4500/750 = 6,  block  6x1649 =  9.9k cells/rank
+      #   gdas  250 -> NPX=125, 4500/125 = 36, block 36x1649 = 59.4k cells/rank
+      # Grid cells grew 9.5x over mx025 (1440x1080 = 1.56M -> 4500x3297 = 14.8M) while
+      # ranks grow 6.25x, so both RUNs land at 1.53x the mx025 per-rank load.
+      # Caveat: the gfs blocks are only 6 cells wide, so with the 1-cell CICE halo ~33%
+      # of the stored columns are halo (8 stored per 6 of science).  That is the cost of
+      # keeping pace with MOM6 under slenderX2; the next valid count down is 1000
+      # (block 9x1649, ~18% halo) if that overhead measures worse than the extra ranks.
       if [[ "${RUN}" = gfs ]]; then
-        ntasks_cice6=240
+        ntasks_cice6=1500
       elif [[ "${RUN}" = enkfgdas ]]; then
-        ntasks_cice6=40
+        ntasks_cice6=250
       else
-        ntasks_cice6=40
+        ntasks_cice6=250
       fi
       cice6_processor_shape="slenderX2"
       ;;

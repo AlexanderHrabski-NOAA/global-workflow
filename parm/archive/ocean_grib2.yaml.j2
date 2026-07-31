@@ -13,5 +13,13 @@ ocean_grib2:
         {% elif OCNRES == 25 or OCNRES == "025" %}
         - "{{ COMIN_OCEAN_GRIB }}/0p25/{{ RUN }}.t{{ cycle_HH }}z.0p25.f{{ fhr3 }}.grib2"
         - "{{ COMIN_OCEAN_GRIB }}/0p25/{{ RUN }}.t{{ cycle_HH }}z.0p25.f{{ fhr3 }}.grib2.idx"
+        {% else %}
+        {# Without this branch an unhandled OCNRES renders an empty 'required' list and #}
+        {# the job happily writes an empty tar.  Fail loudly instead: the archive task   #}
+        {# raises FileNotFoundError naming any required path that does not glob.         #}
+        {# To add a resolution (e.g. OCNRES 008), add its branch here at the same time   #}
+        {# as its entry in OceanIceProducts.VALID_PRODUCT_GRIDS, so the grids listed     #}
+        {# here always match the grids the products job actually writes.                 #}
+        - "{{ COMIN_OCEAN_GRIB }}/FATAL_ERROR_no_ocean_grib2_product_grids_defined_for_OCNRES_{{ OCNRES }}"
         {% endif %}
         {% endfor %}

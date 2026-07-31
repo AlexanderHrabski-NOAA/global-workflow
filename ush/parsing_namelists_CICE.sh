@@ -41,6 +41,17 @@ CICE_namelists() {
     local shape=${processor_shape#"${processor_shape%?}"}
     local NPX=$((ntasks_cice6 / shape)) #number of processors in x direction
     local NPY=$((ntasks_cice6 / NPX))   #number of processors in y direction
+    # The "else" branch below rounds block_size_x up, which is only safe when the
+    # division is exact.  CICE derives the block count from the block *size*
+    # (nblocks_x = (NX_GLB-1)/block_size_x + 1, ice_blocks.F90), so a rounded-up
+    # block_size_x yields nblocks_x < NPX and its cartesian distribution then leaves
+    # the leftover ranks with zero blocks and max_blocks=0.  In other words
+    #
+    #     NX_GLB / NPX  ==  NX_GLB / (ntasks_cice6 / 2)   must be an exact integer
+    #
+    # for slenderX2.  This is a constraint on ntasks_cice6, enforced by choosing it in
+    # config.ufs as 2 * (a divisor of NX_GLB); it is not something this script can fix.
+    # NY_GLB is unconstrained in practice: NPY=2 always gives nblocks_y=2.
     if (($((NX_GLB % NPX)) == 0)); then
         local block_size_x=$((NX_GLB / NPX))
     else

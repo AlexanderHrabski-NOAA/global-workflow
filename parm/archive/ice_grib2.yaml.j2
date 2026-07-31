@@ -14,5 +14,13 @@ ice_grib2:
         {% elif ICERES == 25 or ICERES == "025" %}
         - "{{ COMIN_ICE_GRIB }}/0p25/{{ RUN }}.t{{ cycle_HH }}z.0p25.f{{ fhr3 }}.grib2"
         - "{{ COMIN_ICE_GRIB }}/0p25/{{ RUN }}.t{{ cycle_HH }}z.0p25.f{{ fhr3 }}.grib2.idx"
+        {% else %}
+        {# Without this branch an unhandled ICERES renders an empty 'required' list and #}
+        {# the job happily writes an empty tar.  Fail loudly instead: the archive task   #}
+        {# raises FileNotFoundError naming any required path that does not glob.         #}
+        {# To add a resolution (e.g. ICERES 008), add its branch here at the same time   #}
+        {# as its entry in OceanIceProducts.VALID_PRODUCT_GRIDS, so the grids listed     #}
+        {# here always match the grids the products job actually writes.                 #}
+        - "{{ COMIN_ICE_GRIB }}/FATAL_ERROR_no_ice_grib2_product_grids_defined_for_ICERES_{{ ICERES }}"
         {% endif %}
         {% endfor %}
