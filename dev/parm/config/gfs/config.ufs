@@ -535,7 +535,7 @@ if [[ "${skip_mom6}" == "false" ]]; then
       if [[ "${RUN}" = enkfgdas ]]; then
         ntasks_mom6=960
       elif [[ "${RUN}" = gdas ]]; then
-        ntasks_mom6=600
+        ntasks_mom6=1920
       elif [[ "${RUN}" = gfs ]]; then
         ntasks_mom6=1440
       else
@@ -661,7 +661,7 @@ if [[ "${skip_cice6}" == "false" ]]; then
       elif [[ "${RUN}" = enkfgdas ]]; then
         ntasks_cice6=250
       else
-        ntasks_cice6=250
+        ntasks_cice6=1000
       fi
       cice6_processor_shape="slenderX2"
       ;;

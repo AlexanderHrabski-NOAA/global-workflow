@@ -958,7 +958,7 @@ case ${step} in
 
     declare -x "ntasks"="${NTASKS_TOT}"
     declare -x "threads_per_task"="${UFS_THREADS}"
-    tasks_per_node=$(( max_tasks_per_node / threads_per_task ))
+    tasks_per_node=$(( max_tasks_per_node / threads_per_task / 2 ))
 
     # TODO: make walltimes APP dependent
     if [[ "${RUN}" == gdas ]]; then
