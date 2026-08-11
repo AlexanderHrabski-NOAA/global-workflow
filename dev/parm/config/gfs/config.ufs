@@ -656,14 +656,28 @@ if [[ "${skip_cice6}" == "false" ]]; then
       # of the stored columns are halo (8 stored per 6 of science).  That is the cost of
       # keeping pace with MOM6 under slenderX2; the next valid count down is 1000
       # (block 9x1649, ~18% halo) if that overhead measures worse than the extra ranks.
+      #
+      # gdas TEMPORARILY on slenderX1 to test the NY_GLB=3297 (odd) padding-row
+      # hypothesis for issue #5: slenderX2 always fixes NPY=2, forcing
+      # block_size_y=ceil(3297/2)=1649 and 2*1649=3298 -- one row past the real grid.
+      # slenderX1 fixes NPY=1, so block_size_y=NY_GLB=3297 exactly, no padding -- this
+      # is what RTOFS itself uses (see ice_in_RTOFS_vs_GFS.md). The divisibility rule
+      # changes too: for slenderX1, NPX=ntasks_cice6 directly, so it's
+      # "NX_GLB / ntasks_cice6 must be an exact integer" (not /2). 1000 does NOT
+      # satisfy that (4500/1000=4.5); 900 is the nearest valid divisor below it
+      # (4500/900=5, block 5x3297). gfs/enkfgdas below are untouched and still on
+      # slenderX2 -- 1500 and 250 both happen to already be valid slenderX1 divisors
+      # too (4500/1500=3, 4500/250=18) if this gets extended to them later.
       if [[ "${RUN}" = gfs ]]; then
         ntasks_cice6=1500
+        cice6_processor_shape="slenderX2"
       elif [[ "${RUN}" = enkfgdas ]]; then
         ntasks_cice6=250
+        cice6_processor_shape="slenderX2"
       else
-        ntasks_cice6=1000
+        ntasks_cice6=900
+        cice6_processor_shape="slenderX1"
       fi
-      cice6_processor_shape="slenderX2"
       ;;
     *)
       echo "FATAL ERROR: Unsupported CICE6 resolution = ${cice6_res}, ABORT!"
