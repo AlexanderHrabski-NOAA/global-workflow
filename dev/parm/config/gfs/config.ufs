@@ -675,8 +675,8 @@ if [[ "${skip_cice6}" == "false" ]]; then
         ntasks_cice6=250
         cice6_processor_shape="slenderX2"
       else
-        ntasks_cice6=900
-        cice6_processor_shape="slenderX1"
+        ntasks_cice6=1000
+        cice6_processor_shape="slenderX2"
       fi
       ;;
     *)
