@@ -1,0 +1,27 @@
+! MOM_override for the 0.08-deg (GLBb0.08) RTOFS configuration.
+!
+! Staging: this is a fix file, not a repo file.  Copy it to ${FIXmom}/008/MOM_override;
+! forecast_predet.sh copies ${FIXmom}/${OCNRES}/* into ${DATA}/INPUT/, and
+! parm/ufs/global_control.nml.IN registers 'INPUT/MOM_override' as the second entry of
+! parameter_filename, so every "#override" here wins over MOM_input.
+! forecast_predet.sh also appends its ISO_DATE_STAMPED_STDOUT / ENERGYSAVEDAYS block to
+! the end of this file at run time -- keep the trailing newline.
+
+! Our MOM6 restarts are borrowed from a run at a nearby but non-matching date.  With this
+! false, MOM6 ignores the timestamp inside MOM.res*.nc and adopts the driver's start time
+! instead of aborting on the mismatch.
+!
+! REDUNDANT: this is already False in MOM_input_008.IN (line 285) and is also the MOM6
+! default (MOM_state_initialization.F90, "FATAL_INCONSISTENT_RESTART_TIME", default=.false.).
+! The guarded code is
+!     if (verify_restart_time .and. (Time /= Time_in)) call MOM_error(FATAL, ...)
+!     Time = Time_in
+! so MOM6 already adopts Time_in silently.  Kept here only to make the intent explicit and
+! to survive future changes to the MOM_input template; it changes no behavior today.
+#override FATAL_INCONSISTENT_RESTART_TIME = False
+
+! These restarts were written by a different run than the one reading them, so the stored
+! per-field checksums are not expected to reproduce (MOM6 calls out exactly this case: a
+! restart made with a different mask_table will mismatch and crash).  Unlike the override
+! above, this one is load-bearing -- MOM_input_008.IN sets RESTART_CHECKSUMS_REQUIRED = True.
+#override RESTART_CHECKSUMS_REQUIRED = False

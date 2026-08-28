@@ -422,3 +422,89 @@ directly rather than by approximation.
    config-generation time and fail loudly with a clear message (rather than letting an invalid value
    silently reach CICE and surface as an opaque NetCDF error three layers of restart-reading code
    later), or have it snap any requested value to the nearest valid one automatically.
+
+---
+
+## 5. The mediator cold-start mechanism works, but its comment and its implementation live in different files
+
+**Status:** open (discoverability, not a functional defect). **Blocks:** nothing. Recorded because the
+split cost real debugging time once, and because the obvious "fix" for it — pinning `read_restart` in
+`ufs.configure.s2s.IN` — is a trap that silently disables mediator restarts for the rest of the
+experiment.
+
+### The mechanism, end to end
+
+CMEPS decides whether to read its restart from the NUOPC `read_restart` attribute, checked once in
+`sorc/ufs_model.fd/CMEPS-interface/CMEPS/mediator/med.F90:2231-2241`, which gates the only call to
+`med_phases_restart_read`. That attribute is derived, not configured:
+
+1. `ush/forecast_postdet.sh:1064-1079` (`CMEPS_postdet`) copies the mediator restart to
+   `${DATA}/ufs.cpld.cpl.r.nc` and writes `rpointer.cpl` — or, if the file is missing, prints a
+   `WARNING` and stages nothing.
+2. `ush/parsing_ufs_configure.sh:19-26` then tests for that same staged file and sets
+   `cmeps_run_type='continue'` if present, `'startup'` if not.
+3. Line 55 renders it as `RUNTYPE`, which the template emits as
+   `ALLCOMP_attributes:: start_type`.
+4. `sorc/ufs_model.fd/driver/UFSDriver.F90`'s `IsRestart` maps `start_type` to a driver-level
+   `read_restart`, and `AddAttributes` (lines 848-875) copies that onto every component, MED included.
+
+So the comment at `forecast_postdet.sh:1073` — `cmeps_run_type is determined based on the availability
+of the CMEPS restart file` — is **accurate**. It just describes a step that happens in
+`parsing_ufs_configure.sh`, one file away, with no cross-reference in either direction. Grepping for
+`cmeps_run_type` from inside `forecast_postdet.sh` finds only the comment, which reads as a description
+of code that does not exist.
+
+### Confirmed in the 2026012700 gdas forecast
+
+The chain was verified end to end against `gdas_fcst_seg0.log`:
+
+```
+2706: WARNING: CMEPS restart file '.../20260126.210000.ufs.cpld.cpl.r.nc' not found for warm_start='.true.', will initialize!
+6262: + parsing_ufs_configure.sh[23][[ -f .../fcst.76361/ufs.cpld.cpl.r.nc ]]
+6263: + parsing_ufs_configure.sh[26]local cmeps_run_type=startup
+6280: + parsing_ufs_configure.sh[55]local RUNTYPE=startup
+```
+
+and, in `mediator.log:559`:
+
+```
+(med.F90:DataInitialize) read_restart = .false.
+```
+
+Removing or not staging the mediator restart is therefore sufficient on its own to cold-start the
+mediator. No override is required, and none should be added.
+
+### The trap: do not pin `read_restart` in `MED_attributes::`
+
+Upstream `sorc/ufs_model.fd/tests/parm/ufs.configure.s2s.IN` deliberately omits `read_restart` from
+`MED_attributes::` so that MED inherits the driver's `start_type`-derived value. Adding a literal there:
+
+```
+MED_attributes::
+      read_restart = .false.
+      ...
+```
+
+is **sticky**. `AddAttributes` ingests `<compname>_attributes::` *after* copying the driver value
+(UFSDriver.F90:877-891), so the literal wins — and because `ALLCOMP_attributes::` carries no
+`read_restart` key of its own, nothing later overwrites it. The mediator then cold-starts on every
+cycle regardless of `RUNTYPE`, discarding each mediator restart the workflow produces and paying a
+cycle of coupling-field spin-up every time. The failure is silent: the only symptom is
+`read_restart = .false.` in `mediator.log` on a cycle that should have read a restart.
+
+The same applies to a second `ICE_attributes::` block added to that file. One already exists at line 53;
+ESMF resolves a config label to its first occurrence, so the later block is dead config. Even if it were
+read, `start_type` could not control CICE's run type — the cap sets `runtype` from it at
+`ice_comp_nuopc.F90:471-486`, and `cice_init1` -> `input_data` then re-reads `runtype` from `ice_in`,
+which wins (the `#ifndef CESMCOUPLED` guard at `ice_init.F90:584-588` is active because the UFS build
+defines only `FORTRANUNDERSCORE` and `coupled`, per `CICE-interface/CMakeLists.txt:86-87`).
+
+### What a fix requires
+
+Documentation only; no behavior needs to change.
+
+1. **Minimal**: extend the comment at `forecast_postdet.sh:1073` to name where the decision is actually
+   made, e.g. `cmeps_run_type is set from this file's presence in parsing_ufs_configure.sh:19-26`, and
+   add the reciprocal pointer back to `CMEPS_postdet` at `parsing_ufs_configure.sh:19`.
+2. **Optional**: note next to the `ufs.configure` templates that `read_restart` is intentionally absent
+   from `MED_attributes::` and must stay that way.
