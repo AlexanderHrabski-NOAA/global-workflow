@@ -168,5 +168,7 @@ Newly required by the DIAG_COORD_DEF_Z templatization (stage under the config.uf
     levels onto which MOM6 remaps the 3D ocean history (uo/vo/so/temp on `ocean_model_z`).
     MOM6 fatals if the referenced file is absent. Name per config.ufs — NOT `zgrid_30L.nc`.
 
-Staging: `ush/forecast_predet.sh` glob-copies all of `${FIXglobal}/mom6/008/` into `INPUT/`,
-so the files placed there must be named to match the references above.
+Staging: `ush/forecast_predet.sh` glob-copies all of `${FIXmom}/008/` into `INPUT/`, so the files
+placed there must be named to match the references above.  `FIXmom` defaults to `${FIXglobal}/mom6`
+but is overridable from the experiment yaml, which is how the `008` overlay tree is supplied — see
+`MOM6_008_fix_files.md` section 1.

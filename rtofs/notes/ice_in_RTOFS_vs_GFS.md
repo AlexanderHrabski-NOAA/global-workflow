@@ -7,7 +7,7 @@ Comparison of the sea-ice namelist between the **GFS global-workflow** config an
   [`sorc/ufs_model.fd/tests/parm/ice_in.IN`](sorc/ufs_model.fd/tests/parm/ice_in.IN)
   filled by [`ush/parsing_namelists_CICE.sh`](ush/parsing_namelists_CICE.sh), for
   `RUN=gdas`, `OCNRES=ICERES=008`, `CASE=C384`. `@[...]` values below are resolved to
-  what those inputs produce.
+  what those inputs produce, at the PE counts `config.ufs` sets today (`c8d6371b`).
 - **RTOFS** = the static `ice_in` delivered by the RTOFS team (dropped in the repo root as
   [`ice_in`](ice_in)); `grid_file = grid_cice_NEMS_mx008.nc`.
 
@@ -140,9 +140,9 @@ in both, so tracers re-init rather than read — also identical.)
 
 | Parameter          | GFS (008)              | RTOFS                 | Impact                                                              |
 | ------------------ | --------------------- | --------------------- | ------------------------------------------------------------------ |
-| `nprocs`           | `250` (gdas)          | `384`                 | rank count (from `ntasks_cice6`)                                    |
+| `nprocs`           | `1000` (gdas)         | `384`                 | rank count (from `ntasks_cice6`; `enkfgdas` uses `250`, `gfs` `1500`)|
 | **`processor_shape`** | **`slenderX2`**    | **`slenderX1`**       | GFS: `NPY=2` (pads odd `NY=3297` by one row — tolerated on read); RTOFS: `NPY=1`, no pad. Both valid; layout only. |
-| `block_size_x`     | `36` (`4500/125`)     | `12` (`4500/375`)     | derived from shape/rank count                                       |
+| `block_size_x`     | `9` (`4500/500`)      | `12` (`4500/375`)     | derived from shape/rank count                                       |
 | `block_size_y`     | `1649` (`ceil(3297/2)`)| `3297` (whole)       | derived                                                             |
 | `nx_global` / `ny_global` | `4500` / `3297` | `4500` / `3297`       | — (match)                                                          |
 | `distribution_type/wght`, `ew/ns_boundary_type`, `maskhalo_*` | `cartesian`/`latitude`, `cyclic`/`tripole`, `.false.` | same | — (match) |

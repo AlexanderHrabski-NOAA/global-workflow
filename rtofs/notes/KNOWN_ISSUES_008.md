@@ -119,9 +119,10 @@ Note that neither template is currently reachable — `ice_grib2` and `ocean_gri
 
 ## 2. MOM6's coupling mesh is silently supplied by CICE's fix tree, not MOM6's own
 
-**Status:** open (latent hazard, not currently blocking — see #3, which is what actually surfaces it).
+**Status:** open (latent hazard, not currently blocking).
 **Blocks:** nothing directly today, but it means the `008` MOM6 fix set is incomplete without anyone
-having noticed, and it undermines the workaround for #3.
+having noticed. This was originally filed as a lead on #3; that turned out to be a system bug, so the
+mesh-provenance gap stands on its own as a correctness hazard rather than a suspected cause.
 
 ### What's actually happening
 
@@ -170,21 +171,18 @@ drifted.
 
 ---
 
-## 3. MOM6/CICE crash (or hang) reading `mesh.mx008.nc` — ESMF's ESMFMESH reader doesn't scale to this mesh size
+## 3. `cxil_map`/`-EFAULT` abort in MPI sends at startup — a Gaea C6 system bug, not ours
 
-**Status:** workaround in place and confirmed for both components (commit `20af2173`, "work around ESMF
-mesh read/gen bottleneck") — see below. The underlying ESMF bug itself is still open upstream; this is
-a mitigation, not a fix, and the mesh-file read is still the eventual failure mode if the workaround's
-levers are ever exhausted at a higher resolution or PE count.
-**Blocks:** previously blocked the `gdas` (and presumably `gfs`) forecast job at startup for any coupled
-run with `use_mommesh=true` (the default) at this resolution; no longer blocks it with the workaround
-applied. This was upstream of everything else in this file — the forecast never got far enough to reach
-post-processing.
+**Status:** root-caused and worked around. Not a MOM6, CICE, ESMF, or global-workflow defect — the
+bug is in the Cray PE / glibc interaction on Gaea C6, diagnosed by ORNL via a GFDL ticket. An HPE fix
+is pending with no timeline, so the workaround stays in for the foreseeable future.
+**Blocks:** nothing now. Previously blocked the `gdas` (and presumably `gfs`) forecast job at startup,
+upstream of everything else in this file.
 
 ### Symptom
 
-MOM6's NUOPC cap aborts (or, at low enough PE counts for the mesh reader, hangs) shortly after
-`======== COMPLETED MOM INITIALIZATION ========`, while building its coupling geometry:
+The job aborts during startup — for us, while a component was building its ESMF coupling geometry
+from `mesh.mx008.nc`, but the mesh read is incidental (see root cause):
 
 ```
 816: libfabric:...::cxi:mr:cxip_do_map():129<warn> c6n1325: cxil_map lni: 130 base: 0x0x14774749a010
@@ -194,177 +192,73 @@ MOM6's NUOPC cap aborts (or, at low enough PE counts for the mesh reader, hangs)
      MPIDI_OFI_send_normal(372): OFI tagged senddata failed (ofi_send.h:372:...:Bad address)
 ```
 
-`failure: -14` is `-EFAULT` from the Cray Slingshot/CXI driver's memory-registration call
-(`cxil_map`) — the send buffer can't be pinned for the RDMA rendezvous transfer
-(`FI_CXI_RDZV_THRESHOLD=65536` forces any message this size onto that path). Confirmed via a core dump
-(`MPICH_ABORT_ON_ERROR=1` + `gdb`) that this is **not** a MOM6 restart-read issue — the crash is inside
-`ESMF_MeshCreate`, reading `mesh.mx008.nc`:
+`failure: -14` is `-EFAULT` from the Slingshot/CXI driver's memory-registration call `cxil_map`: the
+send buffer could not be pinned for the RDMA transfer.
 
+### Root cause — glibc's mmap threshold, not message size
+
+Per ORNL's analysis ([issue #5104][c]):
+
+- **Not a message-size limit.** MPI/libfabric message-size limits scale close to a node's total
+  pinnable memory, and this system's effective limits are in the gigabyte range — far above the
+  ~130 MB message that failed.
+- Messages larger than ~16 KB use libfabric's **rendezvous** protocol, which must pin the sender's
+  buffer so the NIC can RDMA-read from it directly. (Below that, the eager protocol sends inline and
+  never registers memory, which is why small messages are unaffected.)
+- glibc's allocator backs allocations past a size threshold (~128 KB by default) with a dedicated
+  **`mmap` region** rather than the process heap. This buffer landed in an mmap-backed region, and
+  `cxil_map` fails to pin that region. Suspected driver-level bug; HPE ticket being filed.
+
+So the trigger is *how the buffer was allocated*, not what it contained or which library sent it. Any
+sufficiently large internode send from an mmap-backed allocation can hit this.
+
+### Confirmation that it is system-specific
+
+The MRE was built and run on **Ursa**, including across two nodes, and **does not reproduce** there.
+That isolated the failure to Gaea C6's software stack rather than to any model or workflow code.
+
+### Workaround (in place)
+
+```bash
+export MALLOC_MMAP_THRESHOLD_=134217728  # 128 MB
 ```
-#12 pio_read_darray_nc_serial () at .../parallelio-2.6.2/src/clib/pio_darray_int.c:1671
-#13 PIOc_read_darray () at .../parallelio-2.6.2/src/clib/pio_darray.c:944
-#14 get_nodeCoords_from_ESMFMesh_file(...)
-#15 ESMCI_mesh_create_from_ESMFMesh_file(...)
-```
 
-### Root cause
+Raising glibc's threshold keeps these allocations on the heap, where pinning works. Set in
+[`env/GAEAC6.env:26`](../../env/GAEAC6.env) alongside the other Gaea C6 fabric settings so it applies
+to every step, not just `fcst`. Confirmed to fix both the MRE and the full workflow.
 
-`ESMCI_Mesh_FileIO.C` (ESMF's mesh-file reader, external to this repo — `esmf-org/esmf`) hardcodes
-both the PIO rearranger and the IO-task count for any file opened via `ESMF_MeshCreate`:
+### Superseded workarounds — do not reintroduce
 
-```cpp
-// ESMCI_Mesh_FileIO.C:167-179
-int pet_count = vm->getPetCount();            // this component's own PET count
-int pets_per_Ssi = vm->getSsiMaxPetCount();    // PETs per node (this run: 192)
-int num_iotasks = pet_count/pets_per_Ssi;      // integer division
-int stride = pets_per_Ssi;
-piorc = PIOc_Init_Intracomm(mpi_comm, num_iotasks, stride, 0, PIO_REARR_SUBSET, &pioSystemDesc);
-```
+Before the root cause was known, this was misread as an ESMF `ESMCI_Mesh_FileIO.C` scaling limit, on
+the theory that its hardcoded `PIO_REARR_SUBSET` rearranger and `num_iotasks = pet_count/pets_per_Ssi`
+funnelled the mesh file through too few ranks to keep per-message chunks small. Three mitigations were
+committed on that theory (`20af2173`, "work around ESMF mesh read/gen bottleneck") and all three were
+reverted in `03f1e53c` once the real cause was found:
 
-`PIO_REARR_SUBSET` funnels the whole file through exactly `num_iotasks` ranks, which then redistribute
-to everyone else via raw point-to-point `MPI_Send`. At mx008's scale (`mesh.mx008.nc`: 14,836,500
-elements / 14,836,501 nodes), the resulting per-message chunks are large enough to exceed what
-`cxil_map` can register. Neither the rearranger choice nor the IO-task count is exposed as a runtime
-option anywhere in this call chain — it is not a MOM6, CICE, or global-workflow config problem.
-
-Because `PIOc_Init_Intracomm`'s IO tasks are selected at local ranks `0, stride, 2·stride, ...` within
-each component's own communicator, **local rank 0 is always one of them** — which is why this
-deterministically hits the same global rank (816 = ocean's local PE 0) every time at a fixed PE layout.
-
-CICE's cap (`CICE-interface/CICE/cicecore/drivers/nuopc/cmeps/ice_comp_nuopc.F90:780`) calls the
-identical `ESMF_MeshCreate(..., fileformat=ESMF_FILEFORMAT_ESMFMESH, ...)` on the same file, with no
-alternative geometry path (see below) — it is equally exposed, and at typical `008` CICE PET counts is
-worse off than MOM6 (fewer PETs → `num_iotasks` rounds down to 1 sooner).
-
-### What's been tried
-
-| Change | Result |
+| Change | Status |
 | --- | --- |
-| `ulimit -l`/`-c` unlimited (memlock, core size) | Already unlimited on compute nodes by default — not the limiting resource. Ruled out. |
-| `ntasks_mom6` 600 → 1920 (matching RTOFS's own `OCN_petlist_bounds` PE count) | `num_iotasks` for MOM6 went 3 → 10; crashing message dropped ~93.5 MB → ~37.6 MB (both `cxil_map`/`-EFAULT`, same rank). Real improvement, still not enough. |
-| `USE_MOMMESH=false` (MOM6-only; routes MOM6's cap through `ESMF_GEOMTYPE_GRID` instead of `ESMF_GEOMTYPE_MESH`, building the coupling geometry from MOM6's own in-memory domain decomposition — no file read, no PIO, `mom_cap.F90:1373-1511`) at old PE counts (`ntasks_mom6=600`, `ntasks_cice6=250`) | MOM6 clears its own crash point as expected; job then hung shortly after MOM6 init. Log lost before capture — consistent with, but not confirmed as, CICE's mesh read. |
-| `USE_MOMMESH=false` + `ntasks_mom6=1920` + `ntasks_cice6=375` | **MOM6 fully clears — zero `cxil_map` occurrences in the log.** Confirms the `USE_MOMMESH=false` workaround completely. Job still fails, but *before* CICE reaches its own `ESMF_MeshCreate` — CICE's own restart read aborts first, an unrelated bug (fixed as issue #4). CICE's exposure to *this* issue was still untested at this point. |
-| `USE_MOMMESH=false` + `ntasks_mom6=1920` + `ntasks_cice6=1000` (valid value, issue #4 fixed) | **CICE now reaches, and fails at, the identical crash** — `ice_comp_nuopc.F90:780` → `ESMF_MeshCreate` → `PIOc_read_darray` → `PMPI_Send` → `cxil_map`/`-EFAULT`, at rank 2736 (CICE's local PE 0, exactly as the `local rank 0 is always an IO task` rule predicts). Confirms CICE is exposed to this issue exactly like MOM6, with no code-level bypass available. |
-| Same as above + `tasks_per_node` halved (96 instead of 192 on Gaea C6, for the `"fcst"\|"efcs"` step only) | **CICE's mesh read now clears too — zero `cxil_map` occurrences anywhere in the log.** First run where CICE gets past `ESMF_MeshCreate`. Doubling node count (halving `pets_per_Ssi`) roughly doubles `num_iotasks` for every component for free, without needing sparser-and-sparser `ntasks_cice6` bumps. Job still fails, but one step later, in CICE's *own restart read* — a distinct, new bug (see below the fold; not this issue). |
+| `USE_MOMMESH=false` in `config.ocn.j2` (routes MOM6's cap through `ESMF_GEOMTYPE_GRID`, skipping the mesh-file read) | reverted — now commented out. Nothing to work around. |
+| `tasks_per_node` halved in the `"fcst"\|"efcs"` block of `config.resources` (doubles node count to halve `pets_per_Ssi`) | reverted. Was costing roughly double the nodes for the forecast step. |
+| `ntasks_mom6=1920` (gdas) / `ntasks_cice6=1000` | **kept** — but for issue #4's divisibility constraint and for load balance, not for this issue. |
 
-### Committed workaround (commit `20af2173`, "work around ESMF mesh read/gen bottleneck")
+The observation that motivated them — raising `num_iotasks` shrank the failing message and, at the
+last data point, made the crash go away — was reproducible, but it is not evidence for the ESMF
+theory. Nothing about these buffer sizes is near any libfabric limit, and glibc's mmap threshold is
+dynamic (it adapts upward as mmapped blocks are freed), so which allocations end up mmap-backed
+depends on allocation history rather than on size alone. That is enough to make a size sweep look
+like a trend without any of it bearing on why pinning failed. Reintroducing these buys nothing over
+the environment variable and costs nodes.
 
-This is what is actually deployed on this branch right now — three files, four lines:
-
-```diff
---- a/dev/parm/config/gfs/config.ocn.j2
-+++ b/dev/parm/config/gfs/config.ocn.j2
- export MESH_OCN="mesh.mx${OCNRES}.nc"
-+export USE_MOMMESH="false"
-
---- a/dev/parm/config/gfs/config.resources
-+++ b/dev/parm/config/gfs/config.resources
--    tasks_per_node=$(( max_tasks_per_node / threads_per_task ))
-+    tasks_per_node=$(( max_tasks_per_node / threads_per_task / 2 ))
-
---- a/dev/parm/config/gfs/config.ufs
-+++ b/dev/parm/config/gfs/config.ufs
-       elif [[ "${RUN}" = gdas ]]; then
--        ntasks_mom6=600
-+        ntasks_mom6=1920
-       ...
-       else
--        ntasks_cice6=250
-+        ntasks_cice6=1000
-       fi
-```
-
-- `USE_MOMMESH=false` — permanently removes MOM6 from the exposure entirely (no file read, see table
-  above). No downside identified; keep regardless of what else changes.
-- `tasks_per_node` halved in the `"fcst"|"efcs"` block of `config.resources:961` — doubles node count
-  for the forecast step only (other steps/machines unaffected), which is what actually cleared CICE's
-  crash. This is the load-bearing change for CICE; the PE-count bumps below help but did not by
-  themselves clear it (see the four-crashes-before-this-one history in the table above).
-- `ntasks_mom6=1920` (`gdas` branch only — `enkfgdas`/`gfs` unchanged) and `ntasks_cice6=1000` (the
-  `else` branch, i.e. `gdas`/`gfs`; `enkfgdas` stays at its own `250`) — raise `num_iotasks` further and
-  are required for issue #4 (valid `slenderX2` divisor) independent of this issue.
-- Cost: roughly double the nodes for the `fcst`/`efcs` step, plus the extra MOM6/CICE PETs. Not free,
-  but cheaper than waiting on an upstream ESMF fix.
-
-`USE_MOMMESH` is a NUOPC component attribute, not a MOM6 namelist parameter — it must be set as a
-shell env var (`ush/parsing_ufs_configure.sh:50`, `local use_mommesh=${USE_MOMMESH:-"true"}`), not via
-`#override` in `MOM_input`/`MOM_override`. CICE has no equivalent switch; every path through its cap
-reads the mesh file unconditionally.
-
-`ntasks_cice6` is further constrained by CICE's own `slenderX2` block decomposition: `NX_GLB /
-(ntasks_cice6/2)` must be an exact integer (`dev/parm/config/gfs/config.ufs:645-658`), which rules out
-naively copying RTOFS's own CICE PE count (384 does not satisfy it against `NX_GLB=4500`). See issue
-#4 for the full list of valid values.
-
-### Four data points in — the fourth is the first pass
-
-| Component | PETs | `pets_per_Ssi` | `num_iotasks` | Crashing message size | Result |
-| --- | --- | --- | --- | --- | --- |
-| MOM6 | 600 | 192 | 3 | ~93.5 MB | fail |
-| MOM6 | 1920 | 192 | 10 | ~37.6 MB | fail |
-| CICE | 1000 | 192 | 5 | ~52.8 MB | fail |
-| CICE | 1000 | 96 | 10 | (none — passed) | **pass** |
-
-Message size drops as `num_iotasks` rises, consistent with the mechanism (total transferred volume
-appears roughly constant, ~250–380 MB, divided less unevenly as more ranks share the funnel). The
-fourth row is the same `ntasks_cice6=1000` as the third — the only change is `pets_per_Ssi` 192 → 96
-(from halving `tasks_per_node`), which brought `num_iotasks` from 5 to 10 and cleared the crash. That
-roughly halves the expected per-message size again (~52.8 MB → ~mid-20s MB), putting the real safety
-threshold for this mesh somewhere between MOM6's failing ~37.6 MB (`num_iotasks=10` at the old node
-density) and CICE's passing point here — consistent with, not contradicting, the MOM6 data point, since
-MOM6's crashing rank/message and CICE's are different PETs with different local chunk sizes even at the
-same nominal `num_iotasks`. Not enough to state an exact byte threshold, but enough to confirm
-`tasks_per_node` halving is a genuine, working lever and not a fluke.
-
-### `FI_LOG_LEVEL=debug` and `FI_CXI_ATS=1` — both tried, neither is a fix
-
-`FI_LOG_LEVEL=debug` did not make the `cxil_map`/`cxip_do_map()` failure message itself any more
-specific — identical `failure: -14, Bad address` content at every verbosity level, so no numeric
-ceiling was recovered this way. It did surface one new fact from the CXI domain's startup negotiation:
-
-```
-cxip_iomm_init():345<info> c6n1705: Domain ATS: 0 ODP: 0 HMEM: 0 Scalable: 0
-```
-
-Both ATS (Address Translation Services) and ODP (On-Demand Paging) — the two mechanisms that let the
-NIC fault in memory dynamically instead of requiring a buffer pinned as one atomic operation — were
-off. Retested with `FI_CXI_ATS=1` explicitly set to see whether that was just a default. It was not:
-
-```
-cxip_ats_check():279<info> c6n0121: PCIe ATS not supported.
-```
-
-Requesting it forces libfabric to actually probe for it, and the hardware/PCIe/IOMMU configuration on
-these nodes doesn't support it at all — a confirmed, closed-out negative, not a tunable default.
-(That run's failures were also more scattered across ranks, including some outside MOM6/CICE's PET
-ranges — consistent with the usual one-real-failure-then-mass-SIGTERM-fallout pattern seen since the
-very first crash, not new independent bugs; the underlying `cxil_map` signature is unchanged.)
-
-### What a fix requires
-
-Nothing here is fixable purely within this repo:
-
-1. **Upstream ESMF fix** — the real fix. File against `esmf-org/esmf`: `ESMCI_Mesh_FileIO.C`'s
-   `num_iotasks`/`PIO_REARR_SUBSET` choice doesn't scale past ~10M-element ESMFMESH files at typical
-   HPC PETs-per-node densities. Concrete reproducer available (this file/line, this mesh size, this
-   error).
-2. **Interim workaround, MOM6 side**: `USE_MOMMESH=false` — confirmed, no downside identified, keep it
-   on regardless of what else changes.
-3. **Interim workaround, CICE side**: no code-level bypass exists (unlike MOM6, CICE's cap always reads
-   the mesh file) — **but `tasks_per_node` halving is now confirmed to work** (see the fourth data
-   point above and the committed-workaround section). This is deployed as of commit `20af2173`. If a
-   future resolution/PE-count change reopens this crash, the same two levers apply, in order of
-   cost/effectiveness: `tasks_per_node` halving first (doubles `num_iotasks` for every component at
-   once, for the price of roughly doubling node count on the `fcst`/`efcs` step), then further
-   `ntasks_cice6` increases from the valid list in issue #4 (next: 1500) if more headroom is needed.
+[c]: https://github.com/NOAA-EMC/global-workflow/issues/5104#issuecomment-5443806264
 
 ---
 
 ## 4. `ntasks_cice6` must satisfy the `slenderX2` divisibility constraint exactly, or CICE's *own restart read* crashes — not just the block-decomposition problem the constraint was originally documented for
 
-**Status:** open. **Blocks:** CICE initialization for any `ntasks_cice6` that isn't a valid value (see
-below), independent of and *earlier than* issue #3 — CICE's `cice_init` reads its own restart before
-it ever gets to building its coupling mesh.
+**Status:** understood; a valid value is deployed (`ntasks_cice6=1000` for `gdas`/`gfs`, `c8d6371b`),
+but nothing validates the constraint, so the same trap is one config edit away.
+**Blocks:** CICE initialization for any `ntasks_cice6` that isn't a valid value (see below). This bites
+early — `cice_init` reads CICE's own restart before it builds any coupling geometry.
 
 ### Symptom
 
@@ -395,7 +289,7 @@ data into a malformed block layout is a very plausible concrete symptom of exact
 
 This means the constraint isn't just a decomposition nicety for avoiding empty PETs (as originally
 documented in issue context) — an invalid value makes CICE **fail outright** at the very first restart
-read, before it ever reaches the `ESMF_MeshCreate` call issue #3 is about.
+read, before it ever reaches the `ESMF_MeshCreate` call that issue #3 was originally filed against.
 
 ### The valid `ntasks_cice6` values are genuinely sparse
 
@@ -415,9 +309,8 @@ directly rather than by approximation.
 
 ### What a fix requires
 
-1. **Immediate**: rerun with a valid value — `1000` is the recommended next test (matches the value
-   `config.ufs`'s own comment already names as the vetted fallback for the `gfs` case; gives
-   `num_iotasks=1000/192=5` for issue #3's problem once this one clears).
+1. **Done**: `c8d6371b` moved `gdas`/`gfs` to `ntasks_cice6=1000` under `slenderX2`, which satisfies
+   the constraint (`4500 / (1000/2) = 9`). `enkfgdas` stays at `250` (`4500 / 125 = 36`), also valid.
 2. **Real fix**: either have `config.ufs` validate `ntasks_cice6` against this constraint at
    config-generation time and fail loudly with a clear message (rather than letting an invalid value
    silently reach CICE and surface as an opaque NetCDF error three layers of restart-reading code

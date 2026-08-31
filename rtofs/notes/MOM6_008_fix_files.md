@@ -15,11 +15,16 @@ the cold seed / fallback.
 There is **no per-file logic** in the workflow for MOM6 fix files. `ush/forecast_predet.sh` does a
 single blanket glob-copy:
 
-    cpreq "${FIXglobal}/mom6/${OCNRES}/"* "${DATA}/INPUT/"   # TODO: These need to be explicit
+    cpreq "${FIXmom}/${OCNRES}/"* "${DATA}/INPUT/"   # TODO: These need to be explicit
+
+`FIXmom` (and `FIXcice`, `FIXcpl`, `FIXorog`) default to their `${FIXglobal}/...` subdirectories but
+are overridable from the experiment yaml (`config.base.j2:43-46,192-196`). That is what lets this
+configuration point at an overlay tree carrying the `008` files without touching the system fix set —
+see `~/ufs-rtofs-howto` (`create_fixdirs.py` + `fixdirs.<machine>.yaml`).
 
 Consequences:
-  - Every file in `fix/mom6/008/` is copied into `INPUT/`; nothing is validated or named.
-  - The **contract is filename-matching**: the name in `fix/mom6/008/` must exactly equal the name
+  - Every file in `${FIXmom}/008/` is copied into `INPUT/`; nothing is validated or named.
+  - The **contract is filename-matching**: the name in `${FIXmom}/008/` must exactly equal the name
     referenced in `MOM_input_008.IN`. MOM6 opens files by those names from `INPUTDIR="./INPUT"`.
   - A missing *required* file passes staging silently, then **MOM6 fatals at init**. Extra/stale
     files are copied harmlessly and ignored.
@@ -28,9 +33,11 @@ Consequences:
 
 Files that do NOT come through this glob (separate, explicit code paths):
   - `grid_spec.nc`     — coupled mosaic, from `${FIXcpl}/a${CASE}o008/`; has a fatal size-check.
-  - `MOM.res*.nc`      — restarts, from the ocean-restart COM (warm-start data), not fix.
+  - `MOM.res*.nc`      — restarts, from the ocean-restart COM (warm-start data), not fix.  The tile
+                         count is discovered at run time, not fixed per resolution — `MOM6_postdet()`
+                         copies `MOM.res_N.nc` until the sequence breaks and fatals on a gap.
   - `mom6_increment.nc`— DA increment, from the ocean-analysis COM, not fix.
-  - CICE grid/mask/mesh— from `fix/cice/${ICERES}/`, a separate component.
+  - CICE grid/mask/mesh— from `${FIXcice}/${ICERES}/`, a separate component.
 
 
 ## 2. Fix-file equivalence map (GFS-lineage <-> RTOFS)
