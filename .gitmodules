@@ -1,7 +1,6 @@
 [submodule "sorc/ufs_model.fd"]
   path = sorc/ufs_model.fd
-  url = https://github.com/AlexanderHrabski-NOAA/ufs-weather-model
-  branch = feature/highres_mom6cic6
+  url = https://github.com/ufs-community/ufs-weather-model
   ignore = dirty
 [submodule "sorc/wxflow"]
   path = sorc/wxflow
