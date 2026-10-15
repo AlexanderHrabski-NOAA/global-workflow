@@ -1,16 +1,19 @@
 #! /usr/bin/env bash
+set -x
 
 ###############################################################
 echo "Begin Cleanup ${DATAROOT}!"
 
 # Remove DATAoutput from the forecast model run
 # TODO: Handle this better
-DATAfcst="${DATAROOT}/${RUN}fcst.${PDY:-}${cyc}"
-if [[ -d "${DATAfcst}" ]]; then
-    rm -rf "${DATAfcst}"
+if [[ "${CLEANUP_FCST:-YES}" == "YES" ]]; then
+    DATAfcst="${DATAROOT}/${RUN}fcst.${PDY:-}${cyc}"
+    if [[ -d "${DATAfcst}" ]]; then
+        rm -rf "${DATAfcst}"
+    fi
+    #DATAefcs="${DATAROOT}/${RUN}efcs???${PDY:-}${cyc}"
+    rm -rf "${DATAROOT}/${RUN}efcs"*"${PDY:-}${cyc}"
 fi
-#DATAefcs="${DATAROOT}/${RUN}efcs???${PDY:-}${cyc}"
-rm -rf "${DATAROOT}/${RUN}efcs"*"${PDY:-}${cyc}"
 ###############################################################
 
 if [[ "${CLEANUP_COM:-YES}" == NO ]]; then
@@ -77,10 +80,10 @@ function remove_files() {
     # Remove all regular files and symlinks that do not match
     # shellcheck disable=SC2086
     if [[ -n "${find_exclude_string}" ]]; then
-        # String is non-empty → use exclusion
+        # String is non-empty, use exclusion
         find "${directory}" \( -type f -o -type l \) -not \( ${find_exclude_string} \) -ignore_readdir_race -delete
     else
-        # String is empty → no exclusion
+        # String is empty, no exclusion
         find "${directory}" \( -type f -o -type l \) -ignore_readdir_race -delete
     fi
 

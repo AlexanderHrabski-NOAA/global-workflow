@@ -53,7 +53,7 @@ declare -rx COMIN_MED_RESTART="${COMIN}/model/med/restart"
 declare -rx COMIN_SNOW_ANALYSIS="${COMIN}/analysis/snow"
 declare -rx COMIN_SNOW_ANLMON="${COMIN}/products/snow/anlmon"
 declare -rx COMIN_ICE_ANALYSIS="${COMIN}/analysis/ice"
-declare -rx COMIN_ICE_BMATRIX="${COMIN}/bmatrix/ice"
+declare -rx COMIN_ICE_BMATRIX="${COMIN}/analysis/ice/bmatrix"
 declare -rx COMIN_ICE_HISTORY="${COMIN}/model/ice/history"
 declare -rx COMIN_ICE_RESTART="${COMIN}/model/ice/restart"
 declare -rx COMIN_ICE_GRIB="${COMIN}/products/ice/grib2"
@@ -65,7 +65,7 @@ declare -rx COMIN_OCEAN_RESTART="${COMIN}/model/ocean/restart"
 declare -rx COMIN_OCEAN_GRIB="${COMIN}/products/ocean/grib2"
 declare -rx COMIN_OCEAN_NETCDF="${COMIN}/products/ocean/netcdf"
 declare -rx COMIN_OCEAN_ANALYSIS="${COMIN}/analysis/ocean"
-declare -rx COMIN_OCEAN_BMATRIX="${COMIN}/bmatrix/ocean"
+declare -rx COMIN_OCEAN_BMATRIX="${COMIN}/analysis/ocean/bmatrix"
 declare -rx COMIN_WAVE_GRID="${COMIN}/products/wave/gridded"
 declare -rx COMIN_WAVE_HISTORY="${COMIN}/model/wave/history"
 declare -rx COMIN_WAVE_STATION="${COMIN}/products/wave/station"
@@ -98,6 +98,25 @@ if [[ "${DO_WAVE}" == "YES" ]]; then
         echo "Both wavepostGRD and waveinterpGRD are empty. No grids to process."
         export WAVE_OUT_GRIDS=""
     fi
+fi
+
+# If we want to save monthly average products (atmos/ocean(1p00)/ice) for SFS
+if [[ "${RUN}" == "sfs" ]]; then
+    filelist_monthly_mean=("${COMIN_OCEAN_NETCDF}/1p00/sfs.ocean."*"monthly_avg"*".nc")
+    if ((${#filelist_monthly_mean[@]} > 0)); then
+        export MONTHLY_DATA_EXIST="true"
+    else
+        export MONTHLY_DATA_EXIST="false"
+    fi
+fi
+
+# Env variables needed if we want to archive ICs for SFS
+if [[ "${RUN}" == "sfs" && "${ARCH_ICSDIR:-}" == "YES" ]]; then
+    export current_cycle="${PDY}${cyc}"
+    predtg=$(date -u -d"${current_cycle:0:4}-${current_cycle:4:2}-${current_cycle:6:2} ${current_cycle:8:2}:00:00 6 hours ago" +%Y%m%d%H)
+    export precycle=${predtg}
+    export precycle_YMD="${precycle:0:8}"
+    export precycle_HH="${precycle:8:2}"
 fi
 ###############################################################
 # Run archive script

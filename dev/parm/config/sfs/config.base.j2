@@ -33,7 +33,7 @@ export HPSS_PROJECT="{{ HPSS_PROJECT }}"
 # Directories relative to installation areas:
 export HOMEglobal="{{ HOMEglobal }}"
 export EXECglobal=${HOMEglobal}/exec
-export FIXglobal=${HOMEglobal}/fix
+export FIXglobal="{{ FIXglobal }}"
 export PARMglobal=${HOMEglobal}/parm
 export SCRglobal=${HOMEglobal}/scripts
 export USHglobal=${HOMEglobal}/ush
@@ -78,15 +78,19 @@ export DO_TEST_MODE="{{ DO_TEST_MODE }}" # option to change configuration for au
 export HOMEpost="${HOMEglobal}"
 
 # CONVENIENT utility scripts and other environment parameters
-export NMV="/bin/mv"
-export NLN="/bin/ln -sf"
-export VERBOSE="YES"
+export NMV="mv"
+export NLN="ln -sf"
 export KEEPDATA="{{ KEEPDATA }}"
-export DEBUG_POSTSCRIPT="NO" # PBS only; sets debug=true
 export CHGRP_RSTPROD="{{ CHGRP_RSTPROD }}"
 export CHGRP_CMD="{{ CHGRP_CMD }}"
 export NCDUMP="${NETCDF:-${netcdf_c_ROOT:-}}/bin/ncdump"
-export NCLEN="${HOMEglobal}/ush/getncdimlen"
+export NCLEN="${HOMEglobal}/ush/getncdimlen.py"
+
+# Log control
+export VERBOSE="YES"
+export CAT_MPMD_LOGS="YES"  # Copy MPMD logs to the parent log. Remove or set to NO when delivering to NCO.
+export DEBUG_POSTSCRIPT="NO" # PBS only; sets debug=true
+export CHECK_DEAD_LINKS="NO"
 
 # Machine environment, jobs, and other utility scripts
 export BASE_ENV="${HOMEglobal}/env"
@@ -153,10 +157,10 @@ case "${CASE}" in
     "C48")
         export waveGRD='glo_500'
         ;;
-    "C96" | "C192")
+    "C96")
         export waveGRD='glo_100'
         ;;
-    "C384")
+    "C192" | "C384")
         export waveGRD='glo_025'
         ;;
     "C768" | "C1152")
@@ -249,16 +253,18 @@ export FHOUT_OCN=${FHOUT_OCN_GFS}
 export FHOUT_ICE=${FHOUT_ICE_GFS}
 
 # GFS restart interval in hours
-export restart_interval_gfs=12
+export restart_interval_gfs=240
 export restart_interval_enkfgfs=12
 # NOTE: Do not set this to zero.  Instead set it to $FHMAX_GFS
 # TODO: Remove this variable from config.base and reference from config.fcst
 # TODO: rework logic in config.wave and push it to parsing_nameslist_WW3.sh where it is actually used
 
 export QUILTING=".true."
-export OUTPUT_GRID="gaussian_grid"
+export OUTPUT_GRID="global_latlon" # gaussian_grid,global_latlon
+export LONB_IMO=720 # one degree output
+export LATB_JMO=361 #  1/2 degree output is 720 by 361
 export WRITE_DOPOST=".true." # WRITE_DOPOST=true, use inline POST
-export WRITE_NSFLIP=".true."
+export WRITE_NSFLIP=".false." #True, False
 
 # Microphysics Options: 99-ZhaoCarr, 8-Thompson; 6-WSM6, 10-MG, 11-GFDL
 export imp_physics=8
@@ -281,13 +287,10 @@ export ENSMEM=${ENSMEM:-"000"}
 export MEMDIR="mem${ENSMEM}"
 
 # cellular automata
-if (( ENSMEM == 0 )); then
-    export DO_CA="YES"
-else
-    export DO_CA="YES"
-fi
+export DO_CA="YES"
 
 export DOIAU="NO"  # While we are not doing IAU, we may want to warm start w/ IAU in the future
+export DOIAU_COLDSTART="{{ DOIAU_COLDSTART }}" #SFS from GFS ICs cold starts with IAU
 
 # Check if cycle is warm starting with IAU
 if [[ "${EXP_WARM_START}" = ".true." ]]; then
@@ -314,7 +317,7 @@ export DO_METP="NO"         # Run METPLUS jobs - set METPLUS settings in config.
 export DO_FIT2OBS="NO"      # Run fit to observations package
 
 # Archiving options
-export DO_ARCHCOM="NO"    # Tar and archive the COM directories
+export DO_ARCHCOM="{{ DO_ARCHCOM}}"    # Tar and archive the COM directories
 export ARCHCOM_TO="{{ ARCHCOM_TO }}"    # Valid options are hpss, globus_hpss, and local
 
 # Number of regional collectives to create soundings for

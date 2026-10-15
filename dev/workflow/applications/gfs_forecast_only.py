@@ -106,7 +106,7 @@ class GFSForecastOnlyAppConfig(AppConfig):
                 configs += ['postsnd']
 
             if options['do_gempak']:
-                configs += ['gempak', 'gempakmeta']
+                configs += ['gempak']
 
             if options['do_awips']:
                 configs += ['awips', 'fbwind']
@@ -115,7 +115,7 @@ class GFSForecastOnlyAppConfig(AppConfig):
             configs += ['oceanice_products']
 
         if options['do_wave']:
-            configs += ['waveinit', 'wavepostsbs', 'wavepostpnt']
+            configs += ['waveinit', 'wavepostgridded', 'wavepostpnt']
             if options['do_wave_bnd']:
                 configs += ['wavepostbndpnt', 'wavepostbndpntbll']
             if options['do_gempak']:
@@ -208,7 +208,7 @@ class GFSForecastOnlyAppConfig(AppConfig):
                 tasks += ['postsnd']
 
             if options['do_gempak']:
-                tasks += ['gempak', 'gempakmeta']
+                tasks += ['gempak']
 
             if options['do_awips']:
                 tasks += ['awips_20km_1p0deg', 'fbwind']
@@ -220,7 +220,7 @@ class GFSForecastOnlyAppConfig(AppConfig):
             tasks += ['ice_prod']
 
         if options['do_wave']:
-            tasks += ['wavepostsbs']
+            tasks += ['wavepostgridded']
             if options['do_wave_bnd']:
                 tasks += ['wavepostbndpnt', 'wavepostbndpntbll']
             tasks += ['wavepostpnt']
