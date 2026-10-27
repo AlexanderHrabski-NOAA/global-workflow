@@ -661,8 +661,8 @@ case ${step} in
     tasks_per_node=${max_tasks_per_node}
     case ${OCNRES} in
       "008")
-        memory="128GB"
-        ntasks=16;;
+        memory="256GB"
+        ntasks=32;;
       "025")
         memory="128GB"
         ntasks=16;;
