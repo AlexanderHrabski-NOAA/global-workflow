@@ -4,3 +4,12 @@ base:
   DO_TEST_MODE: "NO"
   AERO_ANL_RUNS: "gcdas"
   USE_IODADIR: "YES"
+
+# Fix file override test (feature/fix-file-UI-compatibility-test).
+# Sources are marked copies made by dev/ci/scripts/make_fixtest_files.sh;
+# run it once before setting up this case.
+fix_files:
+  replace:
+    orog/C96/C96.mx500_oro_data.tile1.nc:             {{ HOMEglobal }}/fixtest/orog/C96/C96.mx500_oro_data.tile1.nc          # aeroanlgenb
+    gdas/fv3jedi/fv3files/fmsmpp.nml:                 {{ HOMEglobal }}/fixtest/gdas/fv3jedi/fv3files/fmsmpp.nml
+    gdas/aero/clim_b/stddev.fv_tracer.res.tile1.nc:   {{ HOMEglobal }}/fixtest/gdas/aero/clim_b/stddev.fv_tracer.res.tile1.nc  # BERROR_DATA_DIR

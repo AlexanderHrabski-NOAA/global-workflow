@@ -216,3 +216,7 @@ versions/run.ver
 
 # jcb checkout and symlinks
 ush/python/jcb
+
+# Marked fix file copies for the fix file override CI test
+#------------------------------
+fixtest/
