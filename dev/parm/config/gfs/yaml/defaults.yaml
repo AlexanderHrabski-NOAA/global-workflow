@@ -93,6 +93,7 @@ prepoceanobs:
 
 fcst:
   CHECK_LAND_RESTART_FIELDS: "YES"
+  esmf_profile: ".false."  # ".true." enables the ESMF runtime profile summary
 
 # config.aero has just a system-specific path to add.
 # This is handled by the setup_expt.py, but it has to be told to write to it.
