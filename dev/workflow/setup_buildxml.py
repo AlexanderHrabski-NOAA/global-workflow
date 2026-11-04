@@ -36,6 +36,7 @@ def input_args(*argv):
                         type=str, required=False, default='build_opts.yaml')
     parser.add_argument('--systems', help='System(s) to build (options: gfs, gefs, sfs, gcafs, gsi, gdas, or all)', required=False, default='gfs')
     parser.add_argument('--debug', help='Build in debug mode', required=False, action='store_true')
+    parser.add_argument('--tracing', help='Build the UFS model with UFS tracing enabled', required=False, action='store_true')
 
     inputs = parser.parse_args(list(*argv) if len(argv) else None)
 
@@ -68,6 +69,9 @@ def get_task_spec(task_name: str, task_spec: Dict, host_spec: Dict) -> Dict:
     task_dict.command = f"cd {HOMEglobal}/sorc/; {task_spec.command} -j {task_spec.cores}"
     if host_spec.debug:
         task_dict.command = f"{task_dict.command} -d"
+    # Only the UFS model build knows how to enable tracing
+    if host_spec.tracing and "build_ufs.sh" in task_spec.command:
+        task_dict.command = f"{task_dict.command} -t"
     task_dict.job_name = task_name
     task_dict.log = f"{HOMEglobal}/sorc/logs/{task_name}.log"
 
@@ -209,6 +213,7 @@ def main(*argv):
     host_specs = get_host_specs(Host())
     host_specs.account = user_inputs.account
     host_specs.debug = user_inputs.debug
+    host_specs.tracing = user_inputs.tracing
 
     # Retrieve build specificatiosn from user provided yaml
     user_yaml_dict = AttrDict(parse_yaml(user_inputs.yaml))

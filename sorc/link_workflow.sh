@@ -255,6 +255,9 @@ fi
 cd "${HOMEglobal}/ush" || exit 1
 safe_link_or_copy "${HOMEglobal}/sorc/ufs_model.fd/tests/atparse.bash" .
 
+# Link the script from ufs-weather-model that merges the per-rank UFS trace files
+safe_link_or_copy "${HOMEglobal}/sorc/ufs_model.fd/ufs_tracing/combine_traces.sh" ufs_combine_traces.sh
+
 # Link UPP modulefiles for module loading
 cd "${HOMEglobal}/modulefiles" || exit 1
 if [[ -d "${HOMEglobal}/sorc/ufs_model.fd/UFSATM/upp/modulefiles" ]]; then

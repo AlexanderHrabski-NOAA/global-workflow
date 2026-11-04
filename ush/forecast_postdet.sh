@@ -658,6 +658,32 @@ CPL_out() {
     fi
 }
 
+# Merge the per-rank traces written by a UFS_TRACING build into a single trace
+# and keep it with the other performance output (see CPL_out for the ESMF profile).
+# This is a no-op for builds without UFS_TRACING, which write no trace files.
+UFS_trace_out() {
+    echo "SUB ${FUNCNAME[0]}: Combining UFS trace files"
+    local rank_traces
+    rank_traces=$(compgen -G "${DATA}/ufs_trace_*.trace" || true)
+    if [[ -z "${rank_traces}" ]]; then
+        echo "INFO: No UFS trace files found in ${DATA}, skipping"
+        return 0
+    fi
+
+    # combine_traces.sh works on the current directory and writes out.trace
+    (cd "${DATA}" && "${USHglobal}/ufs_combine_traces.sh") && true
+    export err=$?
+    if [[ ${err} -ne 0 ]]; then
+        err_exit "ufs_combine_traces.sh failed to combine the UFS trace files!"
+    fi
+
+    if [[ ! -d "${COMOUT_ATMOS_HISTORY}" ]]; then
+        echo "INFO: Directory ${COMOUT_ATMOS_HISTORY} does not exist, creating..."
+        mkdir -p "${COMOUT_ATMOS_HISTORY}"
+    fi
+    cpfs "${DATA}/out.trace" "${COMOUT_ATMOS_HISTORY}/ufs.trace"
+}
+
 MOM6_postdet() {
     echo "SUB ${FUNCNAME[0]}: MOM6 after run type determination"
 
