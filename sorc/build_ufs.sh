@@ -9,12 +9,13 @@ APP="S2SWA"
 CCPP_SUITES="FV3_GFS_v17_p8_ugwpv1,FV3_GFS_v17_coupled_p8_ugwpv1,FV3_global_nest_v1" # TODO: does the g-w need to build with all these CCPP_SUITES?
 PDLIB="ON"
 HYDRO="OFF"
+TRACING="OFF"
 EXEC_NAME="gfs_model.x"
 # Valid only for WCOSS2; enable parallel restart I/O
 # TODO: Remove this option when ufs-weather-model#2716 is fixed
 PARALLEL_RESTART="NO"
 
-while getopts ":da:fj:e:pvwy" option; do
+while getopts ":da:fj:e:ptvwy" option; do
     case "${option}" in
         d) BUILD_TYPE="DEBUG" ;;
         a) APP="${OPTARG}" ;;
@@ -24,6 +25,7 @@ while getopts ":da:fj:e:pvwy" option; do
         w) PDLIB="OFF" ;;
         y) HYDRO="ON" ;;
         p) PARALLEL_RESTART="YES" ;;
+        t) TRACING="ON" ;;
         e) EXEC_NAME="${OPTARG}" ;;
         :)
             echo "[${BASH_SOURCE[0]}]: ${option} requires an argument"
@@ -45,6 +47,9 @@ if [[ ${PDLIB:-"OFF"} = "ON" ]]; then
 fi
 if [[ ${HYDRO:-"OFF"} = "ON" ]]; then
     MAKE_OPT+=" -DHYDRO=ON"
+fi
+if [[ ${TRACING:-"OFF"} = "ON" ]]; then
+    MAKE_OPT+=" -DUFS_TRACING=ON"
 fi
 if [[ ${BUILD_TYPE:-"Release"} = "DEBUG" ]]; then
     MAKE_OPT+=" -DDEBUG=ON"

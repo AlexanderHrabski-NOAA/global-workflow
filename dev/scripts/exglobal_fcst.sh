@@ -207,6 +207,7 @@ fi
 if [[ "${esmf_profile:-}" == ".true." ]]; then
     CPL_out
 fi
+UFS_trace_out
 echo "MAIN: Output copied to ROTDIR"
 
 #------------------------------------------------------------------
