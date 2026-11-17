@@ -537,7 +537,7 @@ if [[ "${skip_mom6}" == "false" ]]; then
       elif [[ "${RUN}" = gdas ]]; then
         ntasks_mom6=1920
       elif [[ "${RUN}" = gfs ]]; then
-        ntasks_mom6=1440
+        ntasks_mom6=1920
       else
         ntasks_mom6=1320
       fi
@@ -669,7 +669,7 @@ if [[ "${skip_cice6}" == "false" ]]; then
       # slenderX2 -- 1500 and 250 both happen to already be valid slenderX1 divisors
       # too (4500/1500=3, 4500/250=18) if this gets extended to them later.
       if [[ "${RUN}" = gfs ]]; then
-        ntasks_cice6=1500
+        ntasks_cice6=1000
         cice6_processor_shape="slenderX2"
       elif [[ "${RUN}" = enkfgdas ]]; then
         ntasks_cice6=250

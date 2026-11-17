@@ -28,7 +28,7 @@ class OceanIceProducts(Task):
     COMPONENT_RES_MAP = {'ocean': 'OCNRES', 'ice': 'ICERES'}
 
     # These could be read from the yaml file
-    TRIPOLE_DIMS_MAP = {'mx025': [1440, 1080], 'mx050': [720, 526], 'mx100': [360, 320], 'mx500': [72, 35]}
+    TRIPOLE_DIMS_MAP = {'mx008': [4500, 3297], 'mx025': [1440, 1080], 'mx050': [720, 526], 'mx100': [360, 320], 'mx500': [72, 35]}
     LATLON_DIMS_MAP = {'0p25': [1440, 721], '0p50': [720, 361], '1p00': [360, 181], '5p00': [72, 36]}
 
     def __init__(self, config: Dict[str, Any]) -> None:
@@ -49,8 +49,8 @@ class OceanIceProducts(Task):
                                         'mx050': ['1p00'],
                                         'mx100': ['1p00']}
         else:
-            self.VALID_PRODUCT_GRIDS = {'mx025': ['1p00', '0p25'],
-                                        'mx050': ['1p00', '0p50'],
+            self.VALID_PRODUCT_GRIDS = {'mx008': ['1p00', '0p25'],
+                                        'mx025': ['1p00', '0p25'],
                                         'mx100': ['1p00'],
                                         'mx500': ['5p00']}
 
